@@ -1,11 +1,13 @@
 -- 1. Independent Tables (No Foreign Keys)
 CREATE TABLE Users (
     user_id SERIAL PRIMARY KEY,
+    clerk_id TEXT UNIQUE,
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     phone_number VARCHAR(50) UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP 
+    password_hash TEXT,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE Vehicle_Types (
@@ -66,7 +68,8 @@ CREATE TABLE Rides (
     
     distance_km DECIMAL(10, 2),
     fare_amount DECIMAL(10, 2),
-    ride_status VARCHAR(20) -- e.g., 'requested', 'ongoing', 'completed'
+    ride_status VARCHAR(20), -- e.g., 'requested', 'ongoing', 'completed'
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 5. Dependent Tables (Referencing Rides)
