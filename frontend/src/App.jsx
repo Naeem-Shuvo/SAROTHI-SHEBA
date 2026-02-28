@@ -1,26 +1,19 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { ClerkProvider, useAuth, useUser, SignedIn, SignedOut } from '@clerk/clerk-react';
+import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-react';
 import { setAuthInterceptor } from './api/axios';
 
-// Pages
 import SignInPage from './pages/SignInPage';
 import SignUpPage from './pages/SignUpPage';
 import SelectRolePage from './pages/SelectRolePage';
 import PassengerDashboard from './pages/passenger/Dashboard';
 import DriverDashboard from './pages/driver/Dashboard';
-
-// Components
 import ProtectedRoute from './components/ProtectedRoute';
 import api from './api/axios';
 
 const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-/**
- * HomeRedirect
- * After sign-in, checks the user's role and redirects to the right dashboard.
- * If no role yet → SelectRolePage.
- */
+// redirect based on role
 function HomeRedirect() {
   const { getToken } = useAuth();
   const { isSignedIn, isLoaded: isUserLoaded } = useUser();
@@ -40,12 +33,11 @@ function HomeRedirect() {
         } else if (role === 'driver') {
           navigate('/driver/dashboard', { replace: true });
         } else if (role === 'admin') {
-          navigate('/passenger/dashboard', { replace: true }); // placeholder
+          navigate('/passenger/dashboard', { replace: true });
         } else {
           navigate('/select-role', { replace: true });
         }
       } catch (err) {
-        // User might not be in DB yet (webhook delay)
         console.error('Role check failed:', err);
         navigate('/select-role', { replace: true });
       } finally {
@@ -83,10 +75,7 @@ function HomeRedirect() {
   return null;
 }
 
-/**
- * AuthSetup
- * Sets up the Axios auth interceptor once Clerk is loaded.
- */
+// setup auth interceptor
 function AuthSetup({ children }) {
   const { getToken } = useAuth();
 
@@ -103,39 +92,38 @@ function App() {
       <BrowserRouter>
         <AuthSetup>
           <Routes>
-            {/* Public routes */}
+            {/* public */}
             <Route path="/sign-in/*" element={<SignInPage />} />
             <Route path="/sign-up/*" element={<SignUpPage />} />
 
-            {/* Home — redirects based on role */}
+            {/* home redirect */}
             <Route path="/" element={
               <ProtectedRoute>
                 <HomeRedirect />
               </ProtectedRoute>
             } />
 
-            {/* Role selection */}
+            {/* role selection */}
             <Route path="/select-role" element={
               <ProtectedRoute>
                 <SelectRolePage />
               </ProtectedRoute>
             } />
 
-            {/* Passenger routes */}
+            {/* passenger */}
             <Route path="/passenger/dashboard" element={
               <ProtectedRoute>
                 <PassengerDashboard />
               </ProtectedRoute>
             } />
 
-            {/* Driver routes */}
+            {/* driver */}
             <Route path="/driver/dashboard" element={
               <ProtectedRoute>
                 <DriverDashboard />
               </ProtectedRoute>
             } />
 
-            {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AuthSetup>

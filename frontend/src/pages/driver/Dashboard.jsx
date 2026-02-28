@@ -44,7 +44,7 @@ export default function DriverDashboard() {
             <Navbar role="driver" />
 
             <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 24px' }}>
-                {/* Welcome Header */}
+                {/* welcome header */}
                 <div className="animate-fade-in" style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -68,7 +68,7 @@ export default function DriverDashboard() {
                     </div>
                 </div>
 
-                {/* Stats Grid */}
+                {/* stats grid */}
                 <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -76,7 +76,7 @@ export default function DriverDashboard() {
                     marginBottom: '32px',
                 }}>
                     <div className="stat-card animate-fade-in animate-delay-1">
-                        <div className="stat-value">★ {Number(profile.rating_average || 0).toFixed(1)}</div>
+                        <div className="stat-value">{Number(profile.rating_average || 0).toFixed(1)}</div>
                         <div className="stat-label">Your Rating</div>
                     </div>
                     <div className="stat-card animate-fade-in animate-delay-2">
@@ -84,7 +84,7 @@ export default function DriverDashboard() {
                         <div className="stat-label">Rides Completed</div>
                     </div>
                     <div className="stat-card animate-fade-in animate-delay-3">
-                        <div className="stat-value">৳{Number(stats.total_earnings || 0).toFixed(0)}</div>
+                        <div className="stat-value">Tk {Number(stats.total_earnings || 0).toFixed(0)}</div>
                         <div className="stat-label">Total Earnings</div>
                     </div>
                     <div className="stat-card animate-fade-in animate-delay-4">
@@ -93,7 +93,7 @@ export default function DriverDashboard() {
                     </div>
                 </div>
 
-                {/* Vehicle Card + Quick Action */}
+                {/* vehicle and action */}
                 <div style={{
                     display: 'grid',
                     gridTemplateColumns: vehicle ? '1fr 1fr' : '1fr',
@@ -114,14 +114,16 @@ export default function DriverDashboard() {
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    fontSize: '1.8rem',
+                                    fontSize: '1.2rem',
+                                    fontWeight: 700,
+                                    color: 'white',
                                 }}>
-                                    🚗
+                                    CAR
                                 </div>
                                 <div>
                                     <h4 style={{ fontSize: '1.1rem', fontWeight: 600 }}>{vehicle.model}</h4>
                                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                                        {vehicle.plate_number} • {vehicle.color}
+                                        {vehicle.plate_number} - {vehicle.color}
                                     </p>
                                     <span className="status-badge status-available" style={{ marginTop: '4px', display: 'inline-block' }}>
                                         {vehicle.vehicle_type}
@@ -153,12 +155,12 @@ export default function DriverDashboard() {
                             Go online to start receiving ride requests
                         </p>
                         <button className="btn-primary">
-                            🟢 Go Online
+                            Go Online
                         </button>
                     </div>
                 </div>
 
-                {/* Recent Rides */}
+                {/* recent rides */}
                 <div className="glass-card animate-fade-in">
                     <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '20px' }}>
                         Recent Rides
@@ -166,7 +168,7 @@ export default function DriverDashboard() {
 
                     {recent_rides.length === 0 ? (
                         <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '24px' }}>
-                            No rides yet. Go online to start receiving requests! 🚀
+                            No rides yet. Go online to start receiving requests!
                         </p>
                     ) : (
                         <div style={{ overflowX: 'auto' }}>
@@ -203,17 +205,17 @@ export default function DriverDashboard() {
                                             <td style={{ padding: '14px 16px', fontSize: '0.9rem' }}>
                                                 <div>{ride.pickup_address || 'N/A'}</div>
                                                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                                                    → {ride.drop_address || 'N/A'}
+                                                    to {ride.drop_address || 'N/A'}
                                                 </div>
                                             </td>
                                             <td style={{ padding: '14px 16px', fontSize: '0.9rem' }}>
                                                 {ride.passenger_name}
                                             </td>
                                             <td style={{ padding: '14px 16px', fontSize: '0.9rem' }}>
-                                                {ride.vehicle_type || '—'}
+                                                {ride.vehicle_type || '-'}
                                             </td>
                                             <td style={{ padding: '14px 16px', fontSize: '0.9rem', fontWeight: 600 }}>
-                                                ৳{Number(ride.fare_amount || 0).toFixed(0)}
+                                                Tk {Number(ride.fare_amount || 0).toFixed(0)}
                                             </td>
                                             <td style={{ padding: '14px 16px' }}>
                                                 <span className={`status-badge status-${ride.ride_status}`}>

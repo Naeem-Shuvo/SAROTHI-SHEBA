@@ -1,21 +1,16 @@
 const { Webhook } = require('svix');
 const pool = require('../db/pool');
 
-/**
- * POST /api/webhooks/clerk
- * 
- * Receives Clerk webhook events (user.created, user.updated, user.deleted).
- * Verifies the Svix signature, then syncs data to our Users table.
- */
+// handle clerk webhook
 async function handleClerkWebhook(req, res) {
     const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
     if (!WEBHOOK_SECRET) {
-        console.error('❌ CLERK_WEBHOOK_SECRET not set in .env');
+        console.error('CLERK_WEBHOOK_SECRET not set');
         return res.status(500).json({ error: 'Server misconfigured' });
     }
 
-    // Get the Svix headers
+    // get svix headers
     const svix_id = req.headers['svix-id'];
     const svix_timestamp = req.headers['svix-timestamp'];
     const svix_signature = req.headers['svix-signature'];
@@ -24,7 +19,7 @@ async function handleClerkWebhook(req, res) {
         return res.status(400).json({ error: 'Missing svix headers' });
     }
 
-    // Verify the webhook signature
+    // verify signature
     const wh = new Webhook(WEBHOOK_SECRET);
     let event;
 
@@ -35,11 +30,10 @@ async function handleClerkWebhook(req, res) {
             'svix-signature': svix_signature,
         });
     } catch (err) {
-        console.error('❌ Webhook verification failed:', err.message);
+        console.error('Webhook verification failed:', err.message);
         return res.status(400).json({ error: 'Invalid signature' });
     }
 
-    // Process the event
     const { type } = event;
     const data = event.data;
 
@@ -58,7 +52,7 @@ async function handleClerkWebhook(req, res) {
                 [id, name, email, phone, 'clerk_managed']
             );
 
-            console.log(`✅ User created: ${name} (${email})`);
+            console.log(`User created: ${name} (${email})`);
         }
 
         if (type === 'user.updated') {
@@ -74,20 +68,17 @@ async function handleClerkWebhook(req, res) {
                 [name, email, phone, id]
             );
 
-            console.log(`✅ User updated: ${name} (${email})`);
+            console.log(`User updated: ${name} (${email})`);
         }
 
         if (type === 'user.deleted') {
             const { id } = data;
-
-            // Soft-approach: we won't delete the user, just log it.
-            // In production, you'd handle cascading deletes carefully.
-            console.log(`⚠️ User deletion event received for clerk_id: ${id}`);
+            console.log(`User deletion event for clerk_id: ${id}`);
         }
 
         res.status(200).json({ received: true });
     } catch (err) {
-        console.error('❌ Webhook processing error:', err.message);
+        console.error('Webhook processing error:', err.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 }

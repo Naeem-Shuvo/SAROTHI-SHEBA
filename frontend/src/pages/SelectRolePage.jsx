@@ -59,7 +59,7 @@ export default function SelectRolePage() {
                 justifyContent: 'center',
                 marginBottom: '32px',
             }}>
-                {/* Passenger Card */}
+                {/* passenger card */}
                 <div
                     onClick={() => { setSelectedRole('passenger'); setError(''); }}
                     className="glass-card animate-fade-in animate-delay-1"
@@ -73,7 +73,7 @@ export default function SelectRolePage() {
                         transform: selectedRole === 'passenger' ? 'scale(1.03)' : 'scale(1)',
                     }}
                 >
-                    <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🧑‍💼</div>
+                    <div style={{ fontSize: '3rem', marginBottom: '16px' }}>Passenger</div>
                     <h2 style={{ fontSize: '1.3rem', fontWeight: 600, marginBottom: '8px' }}>
                         I'm a Passenger
                     </h2>
@@ -82,7 +82,7 @@ export default function SelectRolePage() {
                     </p>
                 </div>
 
-                {/* Driver Card */}
+                {/* driver card */}
                 <div
                     onClick={() => { setSelectedRole('driver'); setError(''); }}
                     className="glass-card animate-fade-in animate-delay-2"
@@ -96,7 +96,7 @@ export default function SelectRolePage() {
                         transform: selectedRole === 'driver' ? 'scale(1.03)' : 'scale(1)',
                     }}
                 >
-                    <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🚗</div>
+                    <div style={{ fontSize: '3rem', marginBottom: '16px' }}>Driver</div>
                     <h2 style={{ fontSize: '1.3rem', fontWeight: 600, marginBottom: '8px' }}>
                         I'm a Driver
                     </h2>
@@ -106,7 +106,7 @@ export default function SelectRolePage() {
                 </div>
             </div>
 
-            {/* Driver License Input */}
+            {/* license input */}
             {selectedRole === 'driver' && (
                 <div className="animate-fade-in" style={{
                     width: '100%',
@@ -166,7 +166,7 @@ export default function SelectRolePage() {
                     justifyContent: 'center',
                 }}
             >
-                {loading ? 'Setting up...' : 'Continue →'}
+                {loading ? 'Setting up...' : 'Continue'}
             </button>
         </div>
     );

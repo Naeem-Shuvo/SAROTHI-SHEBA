@@ -7,10 +7,7 @@ const api = axios.create({
     },
 });
 
-/**
- * Set the Clerk session token on every request.
- * Called from App.jsx after Clerk loads.
- */
+// attach clerk token
 export function setAuthInterceptor(getToken) {
     api.interceptors.request.use(async (config) => {
         try {
@@ -19,7 +16,7 @@ export function setAuthInterceptor(getToken) {
                 config.headers.Authorization = `Bearer ${token}`;
             }
         } catch (err) {
-            // silently fail — user might not be signed in
+            // not signed in
         }
         return config;
     });

@@ -2,8 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db/pool');
 
-// GET /api/health
-// Returns server status + DB connectivity check
+// health check
 router.get('/', async (req, res) => {
     try {
         const result = await pool.query('SELECT NOW() AS server_time');

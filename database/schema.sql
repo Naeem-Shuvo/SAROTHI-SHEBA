@@ -1,4 +1,4 @@
--- 1. Independent Tables (No Foreign Keys)
+-- independent tables
 CREATE TABLE Users (
     user_id SERIAL PRIMARY KEY,
     clerk_id TEXT UNIQUE,
@@ -17,7 +17,7 @@ CREATE TABLE Vehicle_Types (
     rate_per_km DECIMAL(10, 2) NOT NULL
 );
 
--- 2. Role Tables (Inherit from Users)
+-- role tables
 CREATE TABLE Admins (
     admin_id INT PRIMARY KEY REFERENCES Users(user_id),
     admin_level INT NOT NULL
@@ -36,7 +36,7 @@ CREATE TABLE Passengers (
     total_distance DECIMAL(10, 2) DEFAULT 0
 );
 
--- 3. Asset Tables
+-- asset tables
 CREATE TABLE Vehicles (
     vehicle_id SERIAL PRIMARY KEY,
     driver_id INT NOT NULL REFERENCES Drivers(user_id),
@@ -46,33 +46,28 @@ CREATE TABLE Vehicles (
     color TEXT
 );
 
--- 4. Transactional Tables (The Core Process)
+-- transactional tables
 CREATE TABLE Rides (
     ride_id SERIAL PRIMARY KEY,
     passenger_id INT NOT NULL REFERENCES Passengers(user_id),
     driver_id INT REFERENCES Drivers(user_id),
     vehicle_type_id INT NOT NULL REFERENCES Vehicle_Types(vehicle_type_id),
-    
-    -- Locations
     pickup_latitude DECIMAL(9, 6) NOT NULL,
     pickup_longitude DECIMAL(9, 6) NOT NULL,
     drop_latitude DECIMAL(9, 6) NOT NULL,
     drop_longitude DECIMAL(9, 6) NOT NULL,
     pickup_address TEXT,
     drop_address TEXT,
-    
-    -- Timestamps
     requested_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     pickup_time TIMESTAMPTZ,
     drop_time TIMESTAMPTZ,
-    
     distance_km DECIMAL(10, 2),
     fare_amount DECIMAL(10, 2),
-    ride_status VARCHAR(20), -- e.g., 'requested', 'ongoing', 'completed'
+    ride_status VARCHAR(20),
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
--- 5. Dependent Tables (Referencing Rides)
+-- dependent tables
 CREATE TABLE Payments (
     payment_id SERIAL PRIMARY KEY,
     ride_id INT UNIQUE NOT NULL REFERENCES Rides(ride_id),

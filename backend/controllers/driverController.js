@@ -1,16 +1,11 @@
 const pool = require('../db/pool');
 
-/**
- * GET /api/drivers/dashboard
- * 
- * Returns the driver's stats, vehicle info, and recent rides.
- * Uses JOINs, aggregations, and subqueries (raw SQL showcase).
- */
+// get driver dashboard
 async function getDriverDashboard(req, res) {
     const userId = req.userId;
 
     try {
-        // 1. Driver profile stats
+        // profile stats
         const profileResult = await pool.query(
             `SELECT d.user_id, u.name, u.email, u.phone_number,
               d.license_number, d.rating_average, d.status
@@ -26,7 +21,7 @@ async function getDriverDashboard(req, res) {
 
         const profile = profileResult.rows[0];
 
-        // 2. Vehicle info
+        // vehicle info
         const vehicleResult = await pool.query(
             `SELECT v.vehicle_id, v.plate_number, v.model, v.color,
               vt.type_name AS vehicle_type
@@ -36,7 +31,7 @@ async function getDriverDashboard(req, res) {
             [userId]
         );
 
-        // 3. Ride stats (total rides, earnings)
+        // ride stats
         const statsResult = await pool.query(
             `SELECT 
          COUNT(*) AS total_rides,
@@ -49,7 +44,7 @@ async function getDriverDashboard(req, res) {
 
         const stats = statsResult.rows[0];
 
-        // 4. Recent rides (last 5) with passenger info
+        // recent rides
         const recentRidesResult = await pool.query(
             `SELECT r.ride_id, r.pickup_address, r.drop_address,
               r.fare_amount, r.distance_km, r.ride_status,
@@ -72,7 +67,7 @@ async function getDriverDashboard(req, res) {
             recent_rides: recentRidesResult.rows,
         });
     } catch (err) {
-        console.error('❌ Driver dashboard error:', err.message);
+        console.error('Driver dashboard error:', err.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 }

@@ -1,16 +1,11 @@
 const pool = require('../db/pool');
 
-/**
- * GET /api/passengers/dashboard
- * 
- * Returns the passenger's stats and recent rides.
- * Uses JOINs and aggregate functions (raw SQL showcase).
- */
+// get passenger dashboard
 async function getPassengerDashboard(req, res) {
     const userId = req.userId;
 
     try {
-        // 1. Passenger profile stats
+        // profile stats
         const profileResult = await pool.query(
             `SELECT p.user_id, u.name, u.email, u.phone_number,
               p.rating_average, p.total_distance
@@ -26,7 +21,7 @@ async function getPassengerDashboard(req, res) {
 
         const profile = profileResult.rows[0];
 
-        // 2. Ride stats (total rides, completed rides)
+        // ride stats
         const statsResult = await pool.query(
             `SELECT 
          COUNT(*) AS total_rides,
@@ -39,7 +34,7 @@ async function getPassengerDashboard(req, res) {
 
         const stats = statsResult.rows[0];
 
-        // 3. Recent rides (last 5) with driver info
+        // recent rides
         const recentRidesResult = await pool.query(
             `SELECT r.ride_id, r.pickup_address, r.drop_address,
               r.fare_amount, r.distance_km, r.ride_status,
@@ -61,7 +56,7 @@ async function getPassengerDashboard(req, res) {
             recent_rides: recentRidesResult.rows,
         });
     } catch (err) {
-        console.error('❌ Passenger dashboard error:', err.message);
+        console.error('Passenger dashboard error:', err.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 }

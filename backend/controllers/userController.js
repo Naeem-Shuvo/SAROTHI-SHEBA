@@ -1,14 +1,8 @@
 const pool = require('../db/pool');
 
-/**
- * POST /api/users/role
- * 
- * Body: { "role": "passenger" | "driver", "license_number"?: "..." }
- * 
- * Inserts the authenticated user into the Passengers or Drivers table.
- */
+// select role
 async function selectRole(req, res) {
-    const userId = req.userId; // set by auth middleware
+    const userId = req.userId;
     const { role, license_number } = req.body;
 
     if (!role || !['passenger', 'driver'].includes(role)) {
@@ -17,12 +11,11 @@ async function selectRole(req, res) {
 
     try {
         if (role === 'passenger') {
-            // Check if already a passenger
             const existing = await pool.query(
                 'SELECT user_id FROM Passengers WHERE user_id = $1', [userId]
             );
             if (existing.rows.length > 0) {
-                return res.status(409).json({ error: 'You are already registered as a passenger' });
+                return res.status(409).json({ error: 'Already registered as passenger' });
             }
 
             await pool.query(
@@ -33,15 +26,14 @@ async function selectRole(req, res) {
 
         if (role === 'driver') {
             if (!license_number) {
-                return res.status(400).json({ error: 'Drivers must provide a license_number' });
+                return res.status(400).json({ error: 'License number required' });
             }
 
-            // Check if already a driver
             const existing = await pool.query(
                 'SELECT user_id FROM Drivers WHERE user_id = $1', [userId]
             );
             if (existing.rows.length > 0) {
-                return res.status(409).json({ error: 'You are already registered as a driver' });
+                return res.status(409).json({ error: 'Already registered as driver' });
             }
 
             await pool.query(
@@ -51,28 +43,23 @@ async function selectRole(req, res) {
             );
         }
 
-        console.log(`✅ User ${userId} registered as ${role}`);
+        console.log(`User ${userId} registered as ${role}`);
         res.json({ success: true, role });
     } catch (err) {
-        console.error('❌ Role selection error:', err.message);
+        console.error('Role selection error:', err.message);
 
-        if (err.code === '23505') { // unique violation
-            return res.status(409).json({ error: 'Duplicate entry — role already assigned or license already exists' });
+        if (err.code === '23505') {
+            return res.status(409).json({ error: 'Duplicate entry' });
         }
         res.status(500).json({ error: 'Internal server error' });
     }
 }
 
-/**
- * GET /api/users/me
- * 
- * Returns the authenticated user's profile and role.
- */
+// get current user
 async function getMe(req, res) {
     const userId = req.userId;
 
     try {
-        // Get base user info
         const userResult = await pool.query(
             'SELECT user_id, name, email, phone_number, created_at FROM Users WHERE user_id = $1',
             [userId]
@@ -84,7 +71,7 @@ async function getMe(req, res) {
 
         const user = userResult.rows[0];
 
-        // Determine role by checking each role table
+        // determine role
         let role = null;
 
         const passengerCheck = await pool.query(
@@ -102,12 +89,9 @@ async function getMe(req, res) {
         );
         if (adminCheck.rows.length > 0) role = 'admin';
 
-        res.json({
-            ...user,
-            role,
-        });
+        res.json({ ...user, role });
     } catch (err) {
-        console.error('❌ Get user error:', err.message);
+        console.error('Get user error:', err.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 }

@@ -3,7 +3,7 @@ const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { getPassengerDashboard } = require('../controllers/passengerController');
 
-// GET /api/passengers/dashboard — passenger stats + recent rides
+// passenger dashboard
 router.get('/dashboard', requireAuth, getPassengerDashboard);
 
 module.exports = router;

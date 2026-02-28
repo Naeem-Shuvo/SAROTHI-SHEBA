@@ -44,7 +44,7 @@ export default function PassengerDashboard() {
             <Navbar role="passenger" />
 
             <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 24px' }}>
-                {/* Welcome Header */}
+                {/* welcome header */}
                 <div className="animate-fade-in" style={{ marginBottom: '32px' }}>
                     <h1 style={{ fontSize: '1.8rem', fontWeight: 700, marginBottom: '6px' }}>
                         Welcome back, <span className="gradient-text">{profile.name}</span>
@@ -54,7 +54,7 @@ export default function PassengerDashboard() {
                     </p>
                 </div>
 
-                {/* Stats Grid */}
+                {/* stats grid */}
                 <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -62,7 +62,7 @@ export default function PassengerDashboard() {
                     marginBottom: '32px',
                 }}>
                     <div className="stat-card animate-fade-in animate-delay-1">
-                        <div className="stat-value">★ {Number(profile.rating_average || 0).toFixed(1)}</div>
+                        <div className="stat-value">{Number(profile.rating_average || 0).toFixed(1)}</div>
                         <div className="stat-label">Your Rating</div>
                     </div>
                     <div className="stat-card animate-fade-in animate-delay-2">
@@ -74,12 +74,12 @@ export default function PassengerDashboard() {
                         <div className="stat-label">Total Distance</div>
                     </div>
                     <div className="stat-card animate-fade-in animate-delay-4">
-                        <div className="stat-value">৳{Number(stats.total_spent || 0).toFixed(0)}</div>
+                        <div className="stat-value">Tk {Number(stats.total_spent || 0).toFixed(0)}</div>
                         <div className="stat-label">Total Spent</div>
                     </div>
                 </div>
 
-                {/* Quick Action */}
+                {/* quick action */}
                 <div className="glass-card animate-fade-in" style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -96,11 +96,11 @@ export default function PassengerDashboard() {
                         </p>
                     </div>
                     <button className="btn-primary" style={{ whiteSpace: 'nowrap' }}>
-                        🗺️ Request a Ride
+                        Request a Ride
                     </button>
                 </div>
 
-                {/* Recent Rides */}
+                {/* recent rides */}
                 <div className="glass-card animate-fade-in">
                     <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '20px' }}>
                         Recent Rides
@@ -108,7 +108,7 @@ export default function PassengerDashboard() {
 
                     {recent_rides.length === 0 ? (
                         <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '24px' }}>
-                            No rides yet. Request your first ride! 🚀
+                            No rides yet. Request your first ride!
                         </p>
                     ) : (
                         <div style={{ overflowX: 'auto' }}>
@@ -145,17 +145,17 @@ export default function PassengerDashboard() {
                                             <td style={{ padding: '14px 16px', fontSize: '0.9rem' }}>
                                                 <div>{ride.pickup_address || 'N/A'}</div>
                                                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                                                    → {ride.drop_address || 'N/A'}
+                                                    to {ride.drop_address || 'N/A'}
                                                 </div>
                                             </td>
                                             <td style={{ padding: '14px 16px', fontSize: '0.9rem' }}>
-                                                {ride.driver_name || '—'}
+                                                {ride.driver_name || '-'}
                                             </td>
                                             <td style={{ padding: '14px 16px', fontSize: '0.9rem' }}>
-                                                {ride.vehicle_type || '—'}
+                                                {ride.vehicle_type || '-'}
                                             </td>
                                             <td style={{ padding: '14px 16px', fontSize: '0.9rem', fontWeight: 600 }}>
-                                                ৳{Number(ride.fare_amount || 0).toFixed(0)}
+                                                Tk {Number(ride.fare_amount || 0).toFixed(0)}
                                             </td>
                                             <td style={{ padding: '14px 16px' }}>
                                                 <span className={`status-badge status-${ride.ride_status}`}>
