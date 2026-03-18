@@ -103,3 +103,5 @@ CREATE TABLE Location_Logs (
     longitude DECIMAL(9, 6) NOT NULL,
     recorded_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+SELECT * from users;
