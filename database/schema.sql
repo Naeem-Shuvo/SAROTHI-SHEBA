@@ -17,7 +17,7 @@ CREATE TABLE Vehicle_Types (
 
 -- 2. Role Tables (Inherit from Users)
 CREATE TABLE Admins (
-    admin_id INT PRIMARY KEY REFERENCES Users(user_id),
+    admin_id INT PRIMARY KEY REFERENCES Users(user_id), --emneo handled cz token chara admin houa jabe na, so reg 1st
     admin_level INT NOT NULL
 );
 
