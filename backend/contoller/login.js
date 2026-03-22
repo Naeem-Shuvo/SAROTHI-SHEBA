@@ -2,11 +2,34 @@ const jwt=require('jsonwebtoken');
 //env theke secret key nite import kora
 require('dotenv').config();
 const { query } = require('../../database/db');
+const crypto=require('crypto');
+const { blacklistToken } = require('../middleware/tokenBlacklist');
+
+// const requireAdmin = (decoded, minLevel = 1)=>{
+//     if(decoded.role!='admin' || !decoded.lvl || decoded.lvl < minLevel){
+//         return false;
+//     }
+//     return true;
+// }
+
+// const requireDriver=(decoded)=>{
+//     if(decoded.role==='driver'){
+//         return true;
+//     }
+//     return false;
+// }
+
+// const requirePassenger=(decoded)=>{
+//     if(decoded.role==='passenger'){
+//         return true;
+//     }
+//     return false;
+// }
 
 const loginPage = async (req, res) => {
     const { username, password,email,phone_number } = req.body;
-    if (!username || !password) {
-        return res.status(400).json({ message: 'Username and password are required' });
+    if ((!email && !phone_number) || !password) {
+        return res.status(400).json({ message: 'Email or phone_number and password are required' });
     }
 
     try {
@@ -17,17 +40,59 @@ const loginPage = async (req, res) => {
         );
 
         if (userResult.rows.length === 0) {
-            return res.status(401).json({ message: 'Invalid credentials' });
+            return res.status(401).json({ message: 'ei user duniya me nahi' });
         }
 
         const user = userResult.rows[0];
 
-        if (user.password_hash !== password) {
-            return res.status(401).json({ message: 'Invalid credentials' });
+        const hashedPass=crypto.createHash('sha256').update(password).digest('hex');
+        if (user.password_hash !== hashedPass) {
+            return res.status(401).json({ message: 'Galat password daal diya' });
+        }
+
+        let role = 'user';
+        let lvl = null;
+
+        const adminResult = await query(
+            'SELECT admin_level FROM admins WHERE admin_id=$1 LIMIT 1',
+            [user.user_id]
+        );
+
+        if (adminResult.rows.length > 0) {
+            role = 'admin';
+            lvl = adminResult.rows[0].admin_level;
+        } else {
+            const driverResult = await query(
+                'SELECT 1 FROM drivers WHERE user_id=$1 LIMIT 1',
+                [user.user_id]
+            );
+
+            if (driverResult.rows.length > 0) {
+                role = 'driver';
+            } else {
+                const passengerResult = await query(
+                    'SELECT 1 FROM passengers WHERE user_id=$1 LIMIT 1',
+                    [user.user_id]
+                );
+
+                if (passengerResult.rows.length > 0) {
+                    role = 'passenger';
+                }
+            }
+        }
+
+        const tokenPayload = {
+            userId: user.user_id,
+            username: user.name,
+            role
+        };
+
+        if (role === 'admin') {
+            tokenPayload.lvl = lvl;
         }
 
         const token = jwt.sign(
-            { userId: user.user_id, username: user.name },
+            tokenPayload,
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
@@ -39,7 +104,8 @@ const loginPage = async (req, res) => {
                 id: user.user_id,
                 name: user.name,
                 email: user.email,
-                phoneNumber: user.phone_number
+                phoneNumber: user.phone_number,
+                role
             }
         });
     } catch (error) {
@@ -47,34 +113,6 @@ const loginPage = async (req, res) => {
     }
 };
 
-const dashboardPage=(req,res)=>{
-    //res.send('Dashboard Page');
-    const authHeader=req.headers.authorization;
-
-    //authoriazation format: Bearer <token>
-    //every HTTP request has a headers section.sob header e auth thake na
-    //Protected routes usually send it, commonly as: Bearer <jwt_token>
-    if(!authHeader || !authHeader.startsWith('Bearer ')){
-        // 401 Unauthorized: client did not provide valid authentication
-        //  credentials (missing token, bad token, expired token).
-        return res.status(401).json({message:'Unauthorized: Invalid or missing token'});
-    }
-    const token=authHeader.split(' ')[1]; //Bearer <token> theke token ta alada kora
-    
-    //need to verify je valid token kina
-    try{
-    const decoded=jwt.verify(token,process.env.JWT_SECRET);
-//Decodes payload
-//If valid, returns the payload data (like username, userId, role).
-    const {username}=decoded; //payload return
-    res.status(200).json({message:`Welcome to the dashboard, ${username}!`});
-    } catch (error) {
-        if (error.name === 'TokenExpiredError') {
-            return res.status(401).json({message:'Unauthorized: token expired'});
-        }
-        return res.status(401).json({message:'Unauthorized: invalid token'});
-    }
-}
 
 const dbHealth = async (req, res) => {
     try {
@@ -85,4 +123,13 @@ const dbHealth = async (req, res) => {
     }
 };
 
-module.exports = { loginPage, dashboardPage, dbHealth };
+const logoutPage = async (req, res) => {
+    try {
+        blacklistToken(req.token, req.user && req.user.exp);
+        return res.status(200).json({ message: 'Logout successful. Token invalidated.' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+module.exports = { loginPage,dbHealth,logoutPage };
