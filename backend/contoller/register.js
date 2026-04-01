@@ -9,6 +9,30 @@ const registerPage=async (req,res)=>{
     if(!username || !email || !phone_number || !password){
         return res.status(400).json({msg:'All fields are required'});
     }
+
+    
+    //regex pattern matching er jonno 
+    //const regex = /pattern/;
+    const emailRegex=(email,phone_number,username)=>{
+        const regex=/^[A-Za-z0-9._%+-]+@gmail\.com$/;
+        const phoneRegex=/^\+8801[3-9][0-9]{8}$/;
+        const nameRegex=/^[A-Za-z ]+$/; //'+' bujhay atleast 1 char , space o allowed
+         if(!regex.test(email)){
+            return false;
+        }
+        if(!nameRegex.test(username)){
+            return false;
+        }
+        if(!phoneRegex.test(phone_number)){
+            return false;
+        }
+        return true; //test() matching dekhe boolean return korbe
+    }
+    if(emailRegex(email,phone_number,username)===false){
+        return res.status(400).json({msg:'Invalid email format or phone number format or username format'});
+    }
+
+
     try{
         const queryResult=await query(
             'SELECT * FROM users WHERE email=$1 OR phone_number=$2',
@@ -25,7 +49,7 @@ const registerPage=async (req,res)=>{
             //{} er moddhe rows, and joto rows sob array akare pass kore
             [username,email,phone_number,hashedPass]
         )
-        //ibject
+        //object
         const userInfo={user_id: insertResult.rows[0].user_id, name: insertResult.rows[0].name};
         const token= jwt.sign(
             {userId: userInfo.user_id, username: userInfo.name}, //passing object to jwt.sign
@@ -38,10 +62,11 @@ const registerPage=async (req,res)=>{
             user:userInfo
         })
     } catch (error) {
+        //db r trigger er error handle korar jonno
+        //email format check tao okhane hobe
         console.error('Error occurred while registering user:', error.message);
         return res.status(500).json({msg:'Internal server error'});
     }
-
 }
 
 const registerAsAdmin=async(req,res)=>{
@@ -100,7 +125,7 @@ const registerAsAdmin=async(req,res)=>{
         // res.status(200).json({
         //     msg:'User registered as driver successfully',
         //     token:newToken,
-        //     user:{userId, username: decoded.username, role:'driver',license_number}
+        //     user:{userId, username: decoded.username, role:'driver',license_number, plate_number}
         // })
     }
 
@@ -114,13 +139,14 @@ const registerAsAdmin=async(req,res)=>{
         const {user_id}=req.body;
         const resultPending=await query(
             'select * from driver_applications where user_id=$1 and status=$2',
-            [user_id, 'pending']
+            [user_id, 'pending'] 
         )
         if(resultPending.rows.length===0){
             return res.status(404).json({msg: 'No pending driver application found for this user_id'});
         }
+        //let kromik;
         const license=resultPending.rows[0].license_number;
-        //const plateNumber=resultPending.rows[0].plate_number;
+        // const plate_Number=resultPending.rows[0].plate_number; //admin ke show kori
         //**ekhane ektu kaj korbi frontend theke admin allow korle then db in hbe */
 
         await query(
@@ -166,20 +192,20 @@ const registerAsAdmin=async(req,res)=>{
    }
 
     const registerAsPassenger=async(req,res)=>{
-                const decoded=req.user;
+        const decoded=req.user;
         if(!decoded){
             return res.status(401).json({msg:'Unauthorized: invalid or missing user context from regPassenger'});
         }
         const userId=decoded.userId;
         
         //check whether pre exist
-        const dummy=await query(
-            'SELECT * FROM Passengers WHERE user_id=$1',
-            [userId]
-        )
-        if(dummy.rows.length>0){
-            return res.status(400).json({msg:'User is already registered as passenger'});
-        }
+        // const dummy=await query(
+        //     'SELECT * FROM Passengers WHERE user_id=$1',
+        //     [userId]
+        // )
+        // if(dummy.rows.length>0){
+        //     return res.status(400).json({msg:'User is already registered as passenger'});
+        // }
         await query(
             'insert into Passengers (user_id,rating_average,total_distance) values ($1, 0, 0) on conflict (user_id) do nothing',
             [userId]

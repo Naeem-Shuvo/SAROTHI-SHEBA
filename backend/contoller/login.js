@@ -28,26 +28,26 @@ const { blacklistToken } = require('../middleware/tokenBlacklist');
 
 const loginPage = async (req, res) => {
     const { username, password,email,phone_number } = req.body;
-    if ((!email && !phone_number) || !password) {
+    if ((!username && !email && !phone_number) || !password) {
         return res.status(400).json({ message: 'Email or phone_number and password are required' });
     }
 
     try {
         const userResult = await query(
-            'SELECT user_id, name, email, phone_number, password_hash FROM users WHERE email = $1 OR phone_number = $1 LIMIT 1',
-            [email || phone_number]
+            'SELECT user_id, name, email, phone_number, password_hash FROM users WHERE username = $1 OR email = $1 OR phone_number = $1 LIMIT 1',
+            [username || email || phone_number]
             //LIMIT 1 means it returns only one matched user.
         );
 
         if (userResult.rows.length === 0) {
-            return res.status(401).json({ message: 'ei user duniya me nahi' });
+            return res.status(401).json({ message: 'this user does not exist' });
         }
 
         const user = userResult.rows[0];
 
         const hashedPass=crypto.createHash('sha256').update(password).digest('hex');
         if (user.password_hash !== hashedPass) {
-            return res.status(401).json({ message: 'Galat password daal diya' });
+            return res.status(401).json({ message: 'wrong password' });
         }
 
         let role = 'user';
