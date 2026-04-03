@@ -44,6 +44,16 @@ CREATE TABLE Vehicles (
     color TEXT
 );
 
+CREATE TABLE driver_applications (
+    application_id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES Users(user_id),
+    license_number TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id)
+);
+
+
 -- 4. Transactional Tables (The Core Process)
 CREATE TABLE Rides (
     ride_id SERIAL PRIMARY KEY,
