@@ -4,7 +4,7 @@ language plpgsql
 as $$
 begin 
     if (TG_OP = 'INSERT') then 
-        if(new.name is null and new.email is null and new.password_hash is null and new.phone_number is null) then 
+        if(new.name is null or new.email is null or new.password_hash is null or new.phone_number is null) then 
             -- if (length(new.password) < 8) then 
             --     raise exception 'Password must be at least 8 characters long';
             -- end if;
@@ -14,12 +14,13 @@ begin
         if new.email !~ '^[A-Za-z0-9._%+-]+@gmail\.com$' then
         raise exception 'Email must be a valid Gmail address';
         end if;
-        if new.phone_number !~ '^\+8801[3-9][0-9]{8}$' then
+        if new.phone_number !~ '^\+8801[3-9][0-9]{8}$' and new.phone_number!~'^01[3-9][0-9]{8}$' then
         raise exception 'Phone number must be a valid Bangladeshi number starting with +880';
         end if;
         if new.name !~ '^[A-Za-z ]+$' then
         raise exception 'Name must contain only letters and spaces';
         end if;
+    end if;
     return new;
 end;
 $$;

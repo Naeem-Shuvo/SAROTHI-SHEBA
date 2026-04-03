@@ -144,7 +144,7 @@ function RideRequestPage() {
     <div className="dash-layout">
       {/* Sidebar */}
       <aside className="dash-sidebar" style={{ width: '200px' }}>
-        <div className="dash-sidebar-logo" style={{ fontSize: '1.2rem' }}>SAROTHI</div>
+        <div className="dash-sidebar-logo" style={{ fontSize: '1.2rem' }}>SAROTHI-SHEBA</div>
         <nav className="dash-nav">
           <button className="dash-nav-item" onClick={() => navigate('/dashboard')} style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}>
             <span>←</span> Back
@@ -179,13 +179,13 @@ function RideRequestPage() {
 
           <div style={{ flex: 1, position: 'relative' }}>
             {/* Instructions Overlay */}
-            <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 1000, background: 'var(--bg-primary)', padding: '1rem', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', width: '300px' }}>
-               <h3 style={{ margin: '0 0 0.5rem', fontSize: '1.1rem' }}>Map Selection</h3>
-               <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Search above, or click on the map.</p>
+            <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 500, background: 'var(--bg-primary)', padding: '1rem', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', width: '200px',height: 'fit-content' }}>
+               <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Map Selection</h3>
+               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Search above, or click on the map.</p>
 
-               {selectionMode === 'pickup' && <p style={{ margin: 0, color: 'var(--accent-info)', fontWeight: 600 }}>📍 Now setting: Pickup</p>}
-               {selectionMode === 'dropoff' && <p style={{ margin: 0, color: 'var(--accent-secondary)', fontWeight: 600 }}>🏁 Now setting: Drop-off</p>}
-               {!selectionMode && <p style={{ margin: 0, color: 'var(--accent-success)', fontWeight: 600 }}>✅ Both locations selected.</p>}
+               {selectionMode === 'pickup' && <p style={{ margin: 0, color: 'var(--accent-info)', fontWeight: 600 ,fontSize: '0.8rem'}}>📍 Now setting: Pickup</p>}
+               {selectionMode === 'dropoff' && <p style={{ margin: 0, color: 'var(--accent-secondary)', fontWeight: 600 ,fontSize: '0.8rem'}}>🏁 Now setting: Drop-off</p>}
+               {!selectionMode && <p style={{ margin: 0, color: 'var(--accent-success)', fontWeight: 600 ,fontSize: '0.8rem'}}>✅ Both locations selected.</p>}
                
                <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
                   <button className="btn btn-secondary btn-sm" onClick={() => setSelectionMode('pickup')} style={{ opacity: selectionMode === 'pickup' ? 0.5 : 1 }}>Set Pickup</button>
