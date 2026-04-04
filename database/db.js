@@ -30,15 +30,17 @@ async function query(text, params) {
     if (!isDml) {
         return pool.query(text, params);
     }
-
+    //dedicated arekta connection nicche jaate conflict na hoy
     const client = await pool.connect();
     try {
+        //ekhane conflicting write ops chalachhe
         await client.query('BEGIN');
         const result = await client.query(text, params);
         await client.query('COMMIT');
         return result;
     } catch (error) {
         try {
+            //transaction e failure e rollback
             await client.query('ROLLBACK');
         } catch (rollbackError) {
             console.error('Rollback failed:', rollbackError.message);
