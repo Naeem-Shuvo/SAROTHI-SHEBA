@@ -10,53 +10,59 @@ import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Star, MessageSquare, CreditCard, Banknote, Car, Navigation, MapPin } from 'lucide-react';
 
+//leaflet marker map e point korar jonno
 let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
 function MapUpdater({ boundsData, centerData }) {
   const map = useMap();
   useEffect(() => {
+    //setTimeout use kora hoise karon map load hoite time ney
     setTimeout(() => {
       map.invalidateSize();
+      //pickup dropoff 2 tai select korar por route ta show korar jonno
       if (boundsData) {
-         map.fitBounds(boundsData, { padding: [50, 50], maxZoom: 16 });
+        map.fitBounds(boundsData, { padding: [50, 50], maxZoom: 16 });
+        //pickup dropoff jekono 1 ta select korar por map e center e show korar jonno
       } else if (centerData) {
-         map.flyTo([centerData.lat, centerData.lng], 14);
+        map.flyTo([centerData.lat, centerData.lng], 14);
       }
     }, 200);
   }, [boundsData, centerData, map]);
   return null;
 }
 
-// MapUpdater from previously...
 
-// Main Component
 function ActiveRidePage() {
   const { user } = useAuth();
   const { socket } = useSocket();
   const navigate = useNavigate();
+  //ride er data hold korar jonno
   const [ride, setRide] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState('');
-  
-  // Rating modal state
+
+  //Rating pop up ashbe ekta payment modal ta jaoar por
   const [showRating, setShowRating] = useState(false);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
 
-  // Auto-calculated distance from OSRM
+  //osrm api use kore 2 ta coordinate er majhe distance ber korbo
   const [distance, setDistance] = useState(0);
 
+  //driver er current position show korar jonno
   const [driverPos, setDriverPos] = useState(null);
+  //route er coordinate hold korar jonno
   const [routeCoords, setRouteCoords] = useState([]);
+  //map er bounds hold korar jonno
   const [mapBounds, setMapBounds] = useState(null);
 
-  // Chat state
+  //chat related state
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
@@ -66,12 +72,14 @@ function ActiveRidePage() {
     try {
       const endpoint = user.role === 'driver' ? '/dashboard/driver' : '/dashboard/passenger';
       const data = await api(endpoint);
+      //rides array theke active ride ta khuje ber korchi
       const active = data.rides.find(r =>
         r.ride_status === 'requested' ||
         r.ride_status === 'accepted' ||
         r.ride_status === 'ongoing' ||
-        r.ride_status === 'completed' // Show completed rides so passenger can pay
+        r.ride_status === 'completed' //completed ride o include kortesi jate passenger pay or rate kore
       );
+      //ride ta state e store kortesi
       setRide(active || null);
     } catch (err) {
       toast.error(err.message || 'Failed to load active ride');
@@ -80,18 +88,21 @@ function ActiveRidePage() {
     }
   };
 
+  //proti 8 second por por active ride ta fetch korbe
   useEffect(() => {
     fetchActiveRide();
     const interval = setInterval(fetchActiveRide, 8000);
     return () => clearInterval(interval);
   }, [user.role]);
 
-  // Handle Free OSRM Routing & Distance Calculation
+  //osrm api use kore pickup theke dropoff er route calculate korchi
+  //useEffect ride update hoile vitorer code call korbe
   useEffect(() => {
     if (ride && ride.pickup_lat && ride.drop_lat) {
       const pickup = { lat: parseFloat(ride.pickup_lat), lng: parseFloat(ride.pickup_lng) };
       const dropoff = { lat: parseFloat(ride.drop_lat), lng: parseFloat(ride.drop_lng) };
-      
+
+      //pickup dropoff 2 tai select korar por route ta show korar jonno
       if (pickup && dropoff && routeCoords.length === 0) {
         setMapBounds(L.latLngBounds([pickup.lat, pickup.lng], [dropoff.lat, dropoff.lng]));
 
@@ -101,7 +112,7 @@ function ActiveRidePage() {
             if (data.routes && data.routes[0]) {
               const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
               setRouteCoords(coords);
-              // Store distance internally for Driver completion payload
+              //distance ta store kortesi pore calculation e use korar jonno
               const distKm = parseFloat((data.routes[0].distance / 1000).toFixed(2));
               setDistance(distKm);
             }
@@ -111,21 +122,22 @@ function ActiveRidePage() {
     }
   }, [ride]);
 
-  // Socket logic
+  //socket or role e change ashle call hobe
   useEffect(() => {
     if (!socket) return;
     const handler = () => fetchActiveRide();
+    //accepted er jonno alada ekta socket karon etay perfect timing dorkar
     socket.on('ride_accepted', handler);
     socket.on('ride_status_update', handler);
     socket.on('new_message', (msg) => {
       setMessages(prev => [...prev, msg]);
     });
-    
-    // Listen for live driver location if user is passenger
+
+    // passenger hole driver er location show korar jonno
     if (user.role !== 'driver') {
-       socket.on('driver_location_update', (data) => {
-          setDriverPos({ lat: data.lat, lng: data.lng });
-       });
+      socket.on('driver_location_update', (data) => {
+        setDriverPos({ lat: data.lat, lng: data.lng });
+      });
     }
 
     return () => {
@@ -136,37 +148,38 @@ function ActiveRidePage() {
     };
   }, [socket, user.role]);
 
-  // Fetch messages
+  // notun ekta ride set hoile initially messages fetch kora
   useEffect(() => {
     if (ride && ride.ride_id) {
       api(`/rides/${ride.ride_id}/messages`)
         .then(data => setMessages(data.messages || []))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [ride?.ride_id]);
 
+  //new messages ashle scroll down hobe auto
   useEffect(() => {
     if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Initial dummy position
+  //map first e ashar por default position
   useEffect(() => {
     if (ride && !driverPos && user.role !== 'driver') {
-       if (ride.pickup_lat) setDriverPos({ lat: parseFloat(ride.pickup_lat) + 0.001, lng: parseFloat(ride.pickup_lng) + 0.001 });
+      if (ride.pickup_lat) setDriverPos({ lat: parseFloat(ride.pickup_lat) + 0.001, lng: parseFloat(ride.pickup_lng) + 0.001 });
     }
   }, [ride, driverPos, user.role]);
 
-  // Emit Real-time GPS location via Geolocation API if Driver
+  //driver hole real time location show korar jonno
   useEffect(() => {
     let watchId;
     if (user.role === 'driver' && navigator.geolocation && ride && ride.ride_status !== 'completed' && socket) {
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
-           const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-           setDriverPos(loc);
-           if (ride.passenger_id) {
-               socket.emit('driver_location_update', { passenger_id: ride.passenger_id, ...loc });
-           }
+          const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setDriverPos(loc);
+          if (ride.passenger_id) {
+            socket.emit('driver_location_update', { passenger_id: ride.passenger_id, ...loc });
+          }
         },
         (err) => console.log('Geolocation error:', err),
         { enableHighAccuracy: true, maximumAge: 5000, timeout: 5000 }
@@ -179,6 +192,7 @@ function ActiveRidePage() {
     setActionLoading(status);
     const body = { status };
 
+    //status completed hobar por distance set kortesi
     if (status === 'completed') {
       if (!distance || isNaN(distance) || distance <= 0) {
         toast.error('Distance calculation not ready. Using default fallback.');
@@ -195,8 +209,8 @@ function ActiveRidePage() {
       });
       toast.success(`Ride marked as ${status}`);
       await fetchActiveRide();
-      // Only auto-navigate if it's a cancellation.
-      // If completed, both see the final summary screen.
+      //completed hole final summary screen e niye jabe
+      //cancelled hole dashboard e niye jabe
       if (status === 'cancelled') navigate(user.role === 'driver' ? '/dashboard/driver' : '/dashboard');
     } catch (err) {
       toast.error(err.message || `Failed to mark ride as ${status}`);
@@ -205,15 +219,19 @@ function ActiveRidePage() {
     }
   };
 
+  //rating submit korar jonno
   const submitRating = async () => {
     setActionLoading('rating');
     try {
+      //rating api te post kortesi
       await api(`/rides/${ride.ride_id}/rate`, {
         method: 'POST',
         body: JSON.stringify({ rating_value: rating, comment })
       });
       toast.success('Rating submitted!');
+      //submit hoye jaoar por rating modal ta bondho kore dibe
       setShowRating(false);
+      //history page e niye jabe
       navigate('/rides/history');
     } catch (err) {
       toast.error(err.message || 'Failed to submit rating');
@@ -223,37 +241,40 @@ function ActiveRidePage() {
   };
 
   const handlePayOnline = async () => {
-     setActionLoading('paying_online');
-     try {
-        const data = await api(`/payment/init/${ride.ride_id}`, { method: 'POST' });
-        if (data.url) {
-           window.location.href = data.url;
-        } else {
-           toast.error('Could not initiate payment');
-        }
-     } catch(err) {
-        toast.error(err.message || 'Payment initialization failed');
-     } finally {
-        setActionLoading('');
-     }
+    setActionLoading('paying_online');
+    try {
+      //payment post kortesi
+      const data = await api(`/payment/init/${ride.ride_id}`, { method: 'POST' });
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error('Could not initiate payment');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Payment initialization failed');
+    } finally {
+      setActionLoading('');
+    }
   };
 
   const handlePayCash = async () => {
-      setActionLoading('paying_cash');
-      try {
-         await api(`/payment/cash/${ride.ride_id}`, { method: 'PUT' });
-         toast.success('Cash payment confirmed!');
-         setShowRating(true); // show rating prompt now
-      } catch (err) {
-         toast.error(err.message || 'Verification failed for Cash Payment');
-      } finally {
-         setActionLoading('');
-      }
+    setActionLoading('paying_cash');
+    try {
+      //cash payment confirm korar jonno
+      await api(`/payment/cash/${ride.ride_id}`, { method: 'PUT' });
+      toast.success('Cash payment confirmed!');
+      setShowRating(true); //pay korar por rating modal niye ashbo
+    } catch (err) {
+      toast.error(err.message || 'Verification failed for Cash Payment');
+    } finally {
+      setActionLoading('');
+    }
   };
 
   const handleSendMessage = async () => {
     if (!chatInput.trim() || !ride) return;
     try {
+      //message post kortesi
       const data = await api(`/rides/${ride.ride_id}/messages`, {
         method: 'POST',
         body: JSON.stringify({ message_text: chatInput.trim() })
@@ -277,7 +298,7 @@ function ActiveRidePage() {
   const isDriver = user.role === 'driver';
 
   if (!ride) {
-    // If there is no active ride at all
+    //jodi kono active ride na thake
     return (
       <div className="dash-layout">
         <main className="dash-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -301,43 +322,42 @@ function ActiveRidePage() {
   const dropoffCoords = ride.drop_lat ? { lat: parseFloat(ride.drop_lat), lng: parseFloat(ride.drop_lng) } : null;
   const defaultMapCenter = pickupCoords ? [pickupCoords.lat, pickupCoords.lng] : [23.8103, 90.4125];
 
-  // Estimated Fare logic for Driver info panel
+  //estimated fare calculate korar jonno
   let estimatedFare = 0;
   if (ride.base_fare && distance) {
-     estimatedFare = (parseFloat(ride.base_fare) + (distance * parseFloat(ride.rate_per_km))).toFixed(2);
+    estimatedFare = (parseFloat(ride.base_fare) + (distance * parseFloat(ride.rate_per_km))).toFixed(2);
   } else if (ride.fare_amount) {
-     estimatedFare = parseFloat(ride.fare_amount).toFixed(2);
+    estimatedFare = parseFloat(ride.fare_amount).toFixed(2);
   }
 
   // MASSIVE MODAL FOR PASSENGER CHECKOUT
   if (!isDriver && ride.ride_status === 'completed') {
-     return (
-        <>
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(18, 18, 18, 0.85)', backdropFilter: 'blur(10px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
-            
-            {/* Main Payment Checkout State */}
-            {!showRating ? (
-              <div className="dash-card" style={{ maxWidth: '500px', width: '100%', padding: '3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '2rem', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
+    return (
+      <>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(18, 18, 18, 0.85)', backdropFilter: 'blur(10px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+
+          {!showRating ? (
+            <div className="dash-card" style={{ maxWidth: '500px', width: '100%', padding: '3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '2rem', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
               <div>
-                 <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(0, 212, 170, 0.1)', color: 'var(--accent-success)', marginBottom: '1rem' }}>
-                    <Navigation size={40} />
-                 </div>
-                 <h1 style={{ margin: 0, fontSize: '2rem' }}>You've Arrived!</h1>
-                 <p className="text-muted" style={{ margin: '0.5rem 0 0 0' }}>Please pay the driver to complete your trip.</p>
+                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(0, 212, 170, 0.1)', color: 'var(--accent-success)', marginBottom: '1rem' }}>
+                  <Navigation size={40} />
+                </div>
+                <h1 style={{ margin: 0, fontSize: '2rem' }}>You've Arrived!</h1>
+                <p className="text-muted" style={{ margin: '0.5rem 0 0 0' }}>Please pay the driver to complete your trip.</p>
               </div>
 
               <div style={{ background: 'var(--bg-secondary)', padding: '2rem', borderRadius: 'var(--radius-lg)' }}>
-                 <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Total Fare</div>
-                 <div style={{ fontSize: '3rem', fontWeight: 'bold', color: 'var(--accent-success)' }}>৳{estimatedFare || ride.fare_amount}</div>
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.5rem' }}>Total Fare</div>
+                <div style={{ fontSize: '3rem', fontWeight: 'bold', color: 'var(--accent-success)' }}>৳{estimatedFare || ride.fare_amount}</div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                 <button className={`btn btn-primary ${actionLoading === 'paying_online' ? 'btn-loading' : ''}`} onClick={handlePayOnline} disabled={!!actionLoading} style={{ padding: '1.25rem', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
-                   <CreditCard /> Pay Online (SSLCommerz)
-                 </button>
-                 <button className={`btn btn-secondary ${actionLoading === 'paying_cash' ? 'btn-loading' : ''}`} onClick={handlePayCash} disabled={!!actionLoading} style={{ padding: '1.25rem', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', background: 'transparent', border: '1px solid var(--border-subtle)' }}>
-                   <Banknote /> Pay with Cash
-                 </button>
+                <button className={`btn btn-primary ${actionLoading === 'paying_online' ? 'btn-loading' : ''}`} onClick={handlePayOnline} disabled={!!actionLoading} style={{ padding: '1.25rem', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
+                  <CreditCard /> Pay Online (SSLCommerz)
+                </button>
+                <button className={`btn btn-secondary ${actionLoading === 'paying_cash' ? 'btn-loading' : ''}`} onClick={handlePayCash} disabled={!!actionLoading} style={{ padding: '1.25rem', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', background: 'transparent', border: '1px solid var(--border-subtle)' }}>
+                  <Banknote /> Pay with Cash
+                </button>
               </div>
             </div>
           ) : (
@@ -347,12 +367,12 @@ function ActiveRidePage() {
                 How was the trip with {ride.driver_name || 'the driver'}?
               </p>
               <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
-                {[1,2,3,4,5].map(s => (
-                  <Star 
-                    key={s} 
-                    size={40} 
-                    onClick={() => setRating(s)} 
-                    style={{ cursor: 'pointer', color: s <= rating ? '#FFD700' : 'var(--text-muted)', fill: s <= rating ? '#FFD700' : 'none', transition: 'all 0.2s' }} 
+                {[1, 2, 3, 4, 5].map(s => (
+                  <Star
+                    key={s}
+                    size={40}
+                    onClick={() => setRating(s)}
+                    style={{ cursor: 'pointer', color: s <= rating ? '#FFD700' : 'var(--text-muted)', fill: s <= rating ? '#FFD700' : 'none', transition: 'all 0.2s' }}
                   />
                 ))}
               </div>
@@ -361,19 +381,18 @@ function ActiveRidePage() {
             </div>
           )}
 
-          </div>
+        </div>
 
-          {/* RENDER THE MAP UNDERNEATH SO IT IS VISIBLE THROUGH THE BLUR */}
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1 }}>
-             <MapContainer center={defaultMapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                {pickupCoords && <Marker position={[pickupCoords.lat, pickupCoords.lng]}><Popup>Pickup</Popup></Marker>}
-                {dropoffCoords && <Marker position={[dropoffCoords.lat, dropoffCoords.lng]}><Popup>Drop-off</Popup></Marker>}
-                {routeCoords.length > 0 && <Polyline positions={routeCoords} color="var(--accent-primary)" weight={5} opacity={0.8} />}
-             </MapContainer>
-          </div>
-        </>
-     );
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1 }}>
+          <MapContainer center={defaultMapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            {pickupCoords && <Marker position={[pickupCoords.lat, pickupCoords.lng]}><Popup>Pickup</Popup></Marker>}
+            {dropoffCoords && <Marker position={[dropoffCoords.lat, dropoffCoords.lng]}><Popup>Drop-off</Popup></Marker>}
+            {routeCoords.length > 0 && <Polyline positions={routeCoords} color="var(--accent-primary)" weight={5} opacity={0.8} />}
+          </MapContainer>
+        </div>
+      </>
+    );
   }
 
   // STANDARD ACTIVE RIDE SCREEN
@@ -388,23 +407,23 @@ function ActiveRidePage() {
 
           <div style={{ padding: '1.5rem', flex: 1, overflowY: 'auto' }}>
             {!isDriver && ride.ride_status !== 'requested' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: 'var(--accent-success)', fontSize: '0.85rem' }}>
-                   <div className="dash-spinner" style={{ width: '12px', height: '12px', borderWidth: '2px' }}></div>
-                   Live driver tracking active
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: 'var(--accent-success)', fontSize: '0.85rem' }}>
+                <div className="dash-spinner" style={{ width: '12px', height: '12px', borderWidth: '2px' }}></div>
+                Live driver tracking active
+              </div>
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)', marginBottom: '1.5rem' }}>
               <div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Pickup</div>
                 <div style={{ fontSize: '0.85rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                   <MapPin size={16} color="var(--accent-info)" /> {ride.pickup_address}
+                  <MapPin size={16} color="var(--accent-info)" /> {ride.pickup_address}
                 </div>
               </div>
               <div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Drop-off</div>
                 <div style={{ fontSize: '0.85rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                   <MapPin size={16} color="var(--accent-secondary)" /> {ride.drop_address}
+                  <MapPin size={16} color="var(--accent-secondary)" /> {ride.drop_address}
                 </div>
               </div>
             </div>
@@ -417,20 +436,19 @@ function ActiveRidePage() {
                       Start Ride (Passenger Picked Up)
                     </button>
                   )}
-                  
-                  {/* Clean Driver Finish Panel */}
+
                   {ride.ride_status === 'ongoing' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'rgba(0,212,170,0.05)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', alignContent: 'center' }}>
-                      
+
                       <div style={{ background: 'var(--bg-primary)', padding: '1rem', borderRadius: 'var(--radius-md)', textAlign: 'center', border: '1px solid var(--border-subtle)' }}>
-                         <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Estimated Fare</span>
-                         <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--accent-success)' }}>
-                            ৳{estimatedFare > 0 ? estimatedFare : '...'}
-                         </div>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Estimated Fare</span>
+                        <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--accent-success)' }}>
+                          ৳{estimatedFare > 0 ? estimatedFare : '...'}
+                        </div>
                       </div>
 
                       <button className={`btn btn-secondary ${actionLoading === 'completed' ? 'btn-loading' : ''}`} onClick={() => updateStatus('completed')} disabled={!!actionLoading || !distance} style={{ padding: '1rem', background: 'var(--accent-secondary)' }}>
-                         Arrived at Destination
+                        Arrived at Destination
                       </button>
                     </div>
                   )}
@@ -447,9 +465,9 @@ function ActiveRidePage() {
                     </div>
                   )}
                   {ride.ride_status !== 'completed' && (
-                     <button className={`btn btn-danger ${actionLoading === 'cancelled' ? 'btn-loading' : ''}`} onClick={() => updateStatus('cancelled')} disabled={!!actionLoading} style={{ padding: '1rem' }}>
-                       Cancel Request
-                     </button>
+                    <button className={`btn btn-danger ${actionLoading === 'cancelled' ? 'btn-loading' : ''}`} onClick={() => updateStatus('cancelled')} disabled={!!actionLoading} style={{ padding: '1rem' }}>
+                      Cancel Request
+                    </button>
                   )}
                 </>
               )}
@@ -507,21 +525,21 @@ function ActiveRidePage() {
             />
             {pickupCoords && (
               <Marker position={[pickupCoords.lat, pickupCoords.lng]}>
-                 <Popup>Pickup</Popup>
+                <Popup>Pickup</Popup>
               </Marker>
             )}
             {dropoffCoords && (
               <Marker position={[dropoffCoords.lat, dropoffCoords.lng]}>
-                 <Popup>Drop-off</Popup>
+                <Popup>Drop-off</Popup>
               </Marker>
             )}
             {driverPos && ride.ride_status !== 'requested' && (
               <Marker position={[driverPos.lat, driverPos.lng]}>
-                 <Popup>{isDriver ? "You" : "Driver"}</Popup>
+                <Popup>{isDriver ? "You" : "Driver"}</Popup>
               </Marker>
             )}
             {routeCoords.length > 0 && (
-               <Polyline positions={routeCoords} color="var(--accent-primary)" weight={5} opacity={0.8} />
+              <Polyline positions={routeCoords} color="var(--accent-primary)" weight={5} opacity={0.8} />
             )}
             <MapUpdater boundsData={mapBounds} />
           </MapContainer>

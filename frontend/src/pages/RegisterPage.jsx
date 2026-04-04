@@ -6,6 +6,7 @@ import api from '../services/api';
 import { AlertTriangle } from 'lucide-react';
 
 function RegisterPage() {
+    // registration form er shob field er data state e object hishebe rakhtesi
     const [formData, setFormData] = useState({
         username: '',
         email: '',
@@ -13,20 +14,26 @@ function RegisterPage() {
         password: '',
         confirmPassword: '',
     });
+    // error message display korar jonno state update pointer logic logic
     const [error, setError] = useState('');
+    // registration pending thakle button e loading spinner show hobe visual
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    // registration er por automatic login korar jonno auth context nisi
     const { login } = useAuth();
 
 
+    // input field change hoile specific state property update kortesi logic point
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    // registration form submission handler logic function pointer logic handler
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
 
+        // password r confirm password match kortese kina oita check kortesi validation logic
         if (formData.password !== formData.confirmPassword) {
             setError('Passwords do not match');
             return;
@@ -34,7 +41,7 @@ function RegisterPage() {
 
         setLoading(true);
         try {
-            //api ke form er data pathacchi
+            // api k registration dataJson create kore pathaitesi logic handler point
             const data = await api('/register', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -44,13 +51,15 @@ function RegisterPage() {
                     password: formData.password,
                 }),
             });
-            //jehetu register korche,tai login korchi automatically
+            // registration success hoile automatic session create kortesi login hook diye
             login(data.token, data.user);
-            //role select page e pathacchi
+            // role select page e pathaitesi jate driver ba passenger select korte pare logic
             navigate('/role-select');
         } catch (err) {
+            // registration failed hoile exception handle kore error state update kortesi
             setError(err.message || 'Registration failed');
         } finally {
+            // request cycle shesh hoile loading cycle off hobe visual rendering point
             setLoading(false);
         }
 
@@ -58,12 +67,15 @@ function RegisterPage() {
 
     return (
         <div className="auth-layout">
+            {/* Registration box visual card rendering logic point layout generation rendering */}
             <div className="auth-card">
                 <div className="auth-header">
+                    {/* Branding identifier visual setup rendering logic layout generation pointer */}
                     <div className="auth-logo">SAROTHI SHEBA</div>
                     <p className="auth-subtitle">Create your account</p>
                 </div>
 
+                {/* Validation ba server error alert display zone visual rendering logic layout display */}
                 {error && (
                     <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <AlertTriangle size={18} /> {error}
@@ -71,6 +83,7 @@ function RegisterPage() {
                 )}
 
                 <form onSubmit={handleSubmit}>
+                    {/* Full Name input field logic grouping rendering visuals point display layout */}
                     <div className="form-group">
                         <label className="form-label" htmlFor="username">
                             Full Name
@@ -87,6 +100,7 @@ function RegisterPage() {
                         />
                     </div>
 
+                    {/* Email address input field logic grouping rendering visual layout logic rendering */}
                     <div className="form-group">
                         <label className="form-label" htmlFor="email">
                             Email Address
@@ -103,6 +117,7 @@ function RegisterPage() {
                         />
                     </div>
 
+                    {/* Contact number input field logic grouping rendering visuals point display layout generation */}
                     <div className="form-group">
                         <label className="form-label" htmlFor="phone_number">
                             Phone Number
@@ -119,6 +134,7 @@ function RegisterPage() {
                         />
                     </div>
 
+                    {/* Secure password input field logic grouping rendering visual layout parsing logic */}
                     <div className="form-group">
                         <label className="form-label" htmlFor="password">
                             Password
@@ -136,6 +152,7 @@ function RegisterPage() {
                         />
                     </div>
 
+                    {/* Password secondary verification grouping logic point visual layout generation rendering */}
                     <div className="form-group">
                         <label className="form-label" htmlFor="confirmPassword">
                             Confirm Password
@@ -152,6 +169,7 @@ function RegisterPage() {
                         />
                     </div>
 
+                    {/* Primary registration action execution point visual rendering logic layout display */}
                     <button
                         type="submit"
                         className={`btn btn-primary btn-full btn-lg ${loading ? 'btn-loading' : ''}`}
@@ -161,6 +179,7 @@ function RegisterPage() {
                     </button>
                 </form>
 
+                {/* Account existance alternative redirect logic generation pointer visuals display rendering */}
                 <div className="auth-footer">
                     Already have an account?{' '}
                     <Link to="/login">Sign in</Link>

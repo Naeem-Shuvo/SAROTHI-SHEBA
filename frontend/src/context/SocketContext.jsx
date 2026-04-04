@@ -13,38 +13,38 @@ export function SocketProvider({ children }) {
     const { user } = useAuth();
 
     useEffect(() => {
-        // only connect if user is logged in
+        // user logged in thaklei shudhu connect hobe
         if (user) {
             const newSocket = io('http://localhost:4000');
 
-            // when connected, join the user's personal room
+            // connected hole user er personal room e join korbe
             newSocket.on('connect', () => {
                 newSocket.emit('join_room', user.userId || user.id);
 
-                // if user is a driver, also join the drivers room for ride requests
+                // user driver hole ride request er jonno drivers room e join korbe
                 if (user.role === 'driver') {
                     newSocket.emit('join_drivers');
                 }
             });
 
-            // Global listener for passengers when their ride completes
+            // passenger der jonno global listener jekhon ride complete hobe
             if (user.role !== 'driver') {
-               newSocket.on('ride_status_update', (data) => {
-                  if (data && data.ride_status === 'completed') {
-                     toast((t) => (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                           <span style={{ fontWeight: 600 }}>🚕 Your ride has completed!</span>
-                           <span style={{ fontSize: '0.85rem' }}>Please pay the driver.</span>
-                           <button 
-                             onClick={() => { toast.dismiss(t.id); window.location.href = '/active-ride'; }}
-                             style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginTop: '4px' }}
-                           >
-                             View & Pay
-                           </button>
-                        </div>
-                     ), { duration: 10000 });
-                  }
-               });
+                newSocket.on('ride_status_update', (data) => {
+                    if (data && data.ride_status === 'completed') {
+                        toast((t) => (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <span style={{ fontWeight: 600 }}>🚕 Your ride has completed!</span>
+                                <span style={{ fontSize: '0.85rem' }}>Please pay the driver.</span>
+                                <button
+                                    onClick={() => { toast.dismiss(t.id); window.location.href = '/active-ride'; }}
+                                    style={{ padding: '6px 12px', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginTop: '4px' }}
+                                >
+                                    View & Pay
+                                </button>
+                            </div>
+                        ), { duration: 10000 });
+                    }
+                });
             }
 
             setSocket(newSocket);
