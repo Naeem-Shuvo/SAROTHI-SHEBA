@@ -16,6 +16,8 @@ const getPassengerDashboard = async (req, res) => {
         const rides = await query(
             `SELECT r.ride_id, r.pickup_address, r.drop_address, r.fare_amount, 
                     r.ride_status, r.requested_at, r.distance_km,
+                    r.pickup_latitude AS pickup_lat, r.pickup_longitude AS pickup_lng,
+                    r.drop_latitude AS drop_lat, r.drop_longitude AS drop_lng,
                     vt.type_name AS vehicle_type,
                     du.name AS driver_name
              FROM rides r

@@ -11,27 +11,20 @@ const registerPage=async (req,res)=>{
     }
 
     
-    //regex pattern matching er jonno 
-    //const regex = /pattern/;
-    const emailRegex=(email,phone_number,username)=>{
-        const regex=/^[A-Za-z0-9._%+-]+@gmail\.com$/;
-        const phoneRegex1=/^\+8801[3-9][0-9]{8}$/;
-        const phoneRegex2=/^01[3-9][0-9]{8}$/;
-        const phoneRegex=new RegExp(`${phoneRegex1.source}|${phoneRegex2.source}`);
-        const nameRegex=/^[A-Za-z ]+$/; //'+' bujhay atleast 1 char , space o allowed
-         if(!regex.test(email)){
-            return false;
-        }  
-        if(!nameRegex.test(username)){
-            return false;
-        }
-        if(!phoneRegex.test(phone_number)){
-            return false;
-        }
-        return true; //test() matching dekhe boolean return korbe
+    const validateInputs = (email, phone, name) => {
+        const emailPattern = /^[A-Za-z0-9._%+-]+@gmail\.com$/i;
+        const phonePattern = /^(\+88)?01[3-9][0-9]{8}$/;
+        const namePattern = /^[A-Za-z0-9 ]+$/;
+
+        if (!emailPattern.test(email)) return "Invalid email format. Only @gmail.com is allowed.";
+        if (!namePattern.test(name)) return "Invalid username. Only letters, numbers, and spaces are allowed.";
+        if (!phonePattern.test(phone)) return "Invalid phone number format. Must start with 01 or +8801.";
+        return null;
     }
-    if(emailRegex(email,phone_number,username)===false){
-        return res.status(400).json({msg:'Invalid email format or phone number format or username format'});
+
+    const validationError = validateInputs(email, phone_number, username);
+    if (validationError) {
+        return res.status(400).json({ msg: validationError });
     }
 
 
@@ -123,12 +116,10 @@ const registerAsAdmin=async(req,res)=>{
    'INSERT INTO driver_applications (user_id, license_number) VALUES ($1,$2) ON CONFLICT DO NOTHING',
    [userId, license_number]
 );
-        // const newToken=jwt.sign({userId,username:decoded.username, role:'driver'},process.env.JWT_SECRET,{expiresIn:'1d'});
-        // res.status(200).json({
-        //     msg:'User registered as driver successfully',
-        //     token:newToken,
-        //     user:{userId, username: decoded.username, role:'driver',license_number, plate_number}
-        // })
+        // send success response so frontend doesn't hang
+        return res.status(200).json({
+            msg: 'Driver application submitted successfully. Waiting for admin approval.',
+        });
     }
 
 
@@ -219,5 +210,38 @@ const registerAsAdmin=async(req,res)=>{
             user:{userId, username: decoded.username, role:'passenger'}
         })
     }
-module.exports={registerPage, registerAsAdmin,registerAsDriver, adminApproveDriver, registerVehicle, registerAsPassenger};
+
+    // admin can reject a pending driver application
+    const adminRejectDriver = async (req, res) => {
+        const adminDecoded = req.user;
+
+        // only admins can reject driver applications
+        if (!adminDecoded || adminDecoded.role !== 'admin') {
+            return res.status(401).json({ msg: 'Unauthorized: only admins can reject driver applications' });
+        }
+
+        const { user_id } = req.body;
+
+        // check that a pending application exists for this user
+        const resultPending = await query(
+            'SELECT * FROM driver_applications WHERE user_id = $1 AND status = $2',
+            [user_id, 'pending']
+        );
+        if (resultPending.rows.length === 0) {
+            return res.status(404).json({ msg: 'No pending driver application found for this user_id' });
+        }
+
+        // update the application status to rejected
+        await query(
+            'UPDATE driver_applications SET status = $1 WHERE user_id = $2',
+            ['rejected', user_id]
+        );
+
+        return res.status(200).json({
+            msg: 'Driver application rejected',
+            user: { userId: user_id, status: 'rejected' }
+        });
+    };
+
+module.exports={registerPage, registerAsAdmin, registerAsDriver, adminApproveDriver, adminRejectDriver, registerVehicle, registerAsPassenger};
 //object akare export korle require o object akare kora lagbe

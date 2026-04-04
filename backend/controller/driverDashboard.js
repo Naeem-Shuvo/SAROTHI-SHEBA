@@ -20,9 +20,13 @@ const getDriverDashboard = async (req, res) => {
         const rides = await query(
             `SELECT r.ride_id, r.pickup_address, r.drop_address, r.fare_amount,
                     r.ride_status, r.requested_at, r.distance_km,
-                    pu.name AS passenger_name
+                    r.pickup_latitude AS pickup_lat, r.pickup_longitude AS pickup_lng,
+                    r.drop_latitude AS drop_lat, r.drop_longitude AS drop_lng,
+                    pu.name AS passenger_name,
+                    vt.base_fare, vt.rate_per_km
              FROM rides r
              JOIN users pu ON r.passenger_id = pu.user_id
+             JOIN vehicle_types vt ON r.vehicle_type_id = vt.vehicle_type_id
              WHERE r.driver_id = $1
              ORDER BY r.requested_at DESC`,
             [userId]

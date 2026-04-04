@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { LayoutDashboard, Car, MapPin, ScrollText, User, AlertTriangle, Star, Ruler, Route } from 'lucide-react';
 
 function PassengerDashboard() {
   const { user, logout } = useAuth();
@@ -49,17 +50,17 @@ function PassengerDashboard() {
       <aside className="dash-sidebar">
         <div className="dash-sidebar-logo">SAROTHI SHEBA</div>
         <nav className="dash-nav">
-          <button className="dash-nav-item" onClick={() => navigate('/dashboard')} style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}>
-            <span>📊</span> Dashboard
+          <button className="dash-nav-item" onClick={() => navigate('/dashboard')} style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <LayoutDashboard size={18} /> Dashboard
           </button>
-          <button className="dash-nav-item" onClick={() => navigate('/rides/request')} style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}>
-            <span>🚘</span> Request Ride
+          <button className="dash-nav-item" onClick={() => navigate('/rides/request')} style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Car size={18} /> Request Ride
           </button>
-          <button className="dash-nav-item" onClick={() => navigate('/active-ride')} style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}>
-            <span>📍</span> Active Ride
+          <button className="dash-nav-item" onClick={() => navigate('/active-ride')} style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <MapPin size={18} /> Active Ride
           </button>
-          <button className="dash-nav-item" onClick={() => navigate('/rides/history')} style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}>
-            <span>📜</span> Ride History
+          <button className="dash-nav-item" onClick={() => navigate('/rides/history')} style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <ScrollText size={18} /> Ride History
           </button>
         </nav>
         <button className="btn btn-danger dash-logout-btn" onClick={handleLogout}>
@@ -72,35 +73,35 @@ function PassengerDashboard() {
         <header className="dash-header">
           <h1 className="dash-title">Passenger Dashboard</h1>
           <div className="dash-user-badge">
-            <span className="dash-avatar">👤</span>
+            <span className="dash-avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><User size={20} color="var(--primary)" /></span>
             <span>{user?.name || 'Passenger'}</span>
           </div>
         </header>
 
         {error && (
-          <div className="alert alert-error" style={{ margin: 'var(--space-lg) 0' }}>
-            <span>⚠</span> {error}
+          <div className="alert alert-error" style={{ margin: 'var(--space-lg) 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertTriangle size={20} /> {error}
           </div>
         )}
 
         {/* Stats Row */}
         <div className="dash-stats-grid">
           <div className="dash-stat-card">
-            <span className="dash-stat-icon">⭐</span>
+            <span className="dash-stat-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Star size={24} color="#FFD700" /></span>
             <div className="dash-stat-info">
               <span className="dash-stat-value">{profile?.rating_average || '0.00'}</span>
               <span className="dash-stat-label">Rating</span>
             </div>
           </div>
           <div className="dash-stat-card">
-            <span className="dash-stat-icon">📏</span>
+            <span className="dash-stat-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Ruler size={24} color="var(--accent-info)" /></span>
             <div className="dash-stat-info">
               <span className="dash-stat-value">{profile?.total_distance || '0'} km</span>
               <span className="dash-stat-label">Total Distance</span>
             </div>
           </div>
           <div className="dash-stat-card">
-            <span className="dash-stat-icon">🚗</span>
+            <span className="dash-stat-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Route size={24} color="var(--accent-secondary)" /></span>
             <div className="dash-stat-info">
               <span className="dash-stat-value">{rides.length}</span>
               <span className="dash-stat-label">Total Rides</span>

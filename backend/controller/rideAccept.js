@@ -39,6 +39,11 @@ const acceptRide = async (req, res) => {
             return res.status(404).json({ msg: 'Ride not found or already accepted' });
         }
 
+        // notify the passenger via socket that their ride was accepted
+        if (global.io) {
+            global.io.to(`user_${result.rows[0].passenger_id}`).emit('ride_accepted', result.rows[0]);
+        }
+
         res.status(200).json({
             msg: 'Ride accepted',
             ride: result.rows[0],

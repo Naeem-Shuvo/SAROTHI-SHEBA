@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { AlertTriangle } from 'lucide-react';
 
 function LoginPage() {
   const [formData, setFormData] = useState({
@@ -65,8 +66,8 @@ function LoginPage() {
         </div>
 
         {error && (
-          <div className="alert alert-error">
-            <span>⚠</span> {error}
+          <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertTriangle size={18} /> {error}
           </div>
         )}
 
