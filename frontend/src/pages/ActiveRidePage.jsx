@@ -455,7 +455,7 @@ function ActiveRidePage() {
               )}
             </div>
 
-            {(ride.ride_status === 'accepted' || ride.ride_status === 'ongoing') && ride.driver_id && (
+            {(ride.ride_status === 'accepted' || ride.ride_status === 'ongoing') && (
               <button className="btn btn-secondary" onClick={() => setChatOpen(!chatOpen)} style={{ marginTop: '1.5rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                 <MessageSquare size={18} /> {chatOpen ? 'Close Chat' : 'Open Chat'} ({messages.length})
               </button>
