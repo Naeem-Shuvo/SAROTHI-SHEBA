@@ -1,6 +1,7 @@
 const jwt =require('jsonwebtoken');
 require('dotenv').config();
 const { isTokenBlacklisted } = require('./tokenBlacklist');
+const { query } = require('../../database/db');
 
 const authMiddleware=(req,res,next)=>{
     const authHeader=req.headers.authorization;
@@ -45,13 +46,16 @@ const requireAdmin = async (decoded, minLevel = 1)=>{
     return result.rows.length > 0;
 }
 
-const requireDriver=(decoded)=>{
+const requireDriver = async (decoded)=>{
+    if (!decoded) {
+        return false;
+    }
     if(decoded.role==='driver'){
         return true;
     }
     const {userId}=decoded;
     // Check if the user has a driver record in the database
-    const result = query(
+    const result = await query(
         'SELECT * FROM drivers WHERE user_id = $1',
         [userId]
     );

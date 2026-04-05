@@ -1,5 +1,7 @@
 const { query } = require('../../database/db');
 
+//decoder neya lagtese na cz nam dham show kortesi na
+//middleware diye auth kortesi,admin holei dhukabe noile noy
 const getAdminDashboard = async (req, res) => {
     try {
         //stats

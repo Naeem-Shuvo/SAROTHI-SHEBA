@@ -33,6 +33,7 @@ const loginPage = async (req, res) => {
     }
 
     try {
+        //logic allows a user to log in creatively using either their username, email address, or phone number.
         const userResult = await query(
             'SELECT user_id, name, email, phone_number, password_hash FROM users WHERE username = $1 OR email = $1 OR phone_number = $1 LIMIT 1',
             [username || email || phone_number]
@@ -100,6 +101,7 @@ const loginPage = async (req, res) => {
         res.status(200).json({
             message: 'Login successful',
             token,
+            //token and json duitai pathano redundanct but convenient for frontend,token diye auth korbe, json diye user info show korbe
             user: {
                 id: user.user_id,
                 name: user.name,
@@ -113,7 +115,7 @@ const loginPage = async (req, res) => {
     }
 };
 
-
+//eta kisu na :)
 const dbHealth = async (req, res) => {
     try {
         const result = await query('SELECT NOW() AS server_time');
@@ -125,6 +127,7 @@ const dbHealth = async (req, res) => {
 
 const logoutPage = async (req, res) => {
     try {
+        //req.user age ensure kore then expiration check korte jabe  
         blacklistToken(req.token, req.user && req.user.exp);
         return res.status(200).json({ message: 'Logout successful. Token invalidated.' });
     } catch (error) {
