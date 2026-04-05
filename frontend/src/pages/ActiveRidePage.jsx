@@ -73,11 +73,25 @@ function ActiveRidePage() {
       const endpoint = user.role === 'driver' ? '/dashboard/driver' : '/dashboard/passenger';
       const data = await api(endpoint);
       //rides array theke active ride ta khuje ber korchi
+      const isPendingCompletedRide = (r) => {
+        if (r.ride_status !== 'completed') return false;
+
+        //driver er jonno: rating deya na thakle completed ride active hishebe thakbe
+        if (user.role === 'driver') {
+          return !r.rated_by_me;
+        }
+
+        //passenger er jonno: payment ba rating pending holei completed ride active thakbe
+        const isPaymentDone = r.payment_status === 'paid';
+        const isRated = !!r.rated_by_me;
+        return !isPaymentDone || !isRated;
+      };
+
       const active = data.rides.find(r =>
         r.ride_status === 'requested' ||
         r.ride_status === 'accepted' ||
         r.ride_status === 'ongoing' ||
-        r.ride_status === 'completed' //completed ride o include kortesi jate passenger pay or rate kore
+        isPendingCompletedRide(r) //completed hole pending action thaklei active page e show korbe
       );
       //ride ta state e store kortesi
       setRide(active || null);

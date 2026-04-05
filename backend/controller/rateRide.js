@@ -5,8 +5,12 @@ const rateRide = async (req, res) => {
     const { ride_id } = req.params;
     const { rating_value, comment } = req.body;
 
+    // normalize payload so frontend can send numeric strings and empty comments safely
+    const parsedRating = Number(rating_value);
+    const normalizedComment = typeof comment === 'string' ? comment.trim() : null;
+
     //rating 1-5 er moddhe hoite hobe
-    if (!rating_value || rating_value < 1 || rating_value > 5) {
+    if (!Number.isFinite(parsedRating) || parsedRating < 1 || parsedRating > 5) {
         return res.status(400).json({ msg: 'Rating must be a number between 1 and 5' });
     }
 
@@ -29,17 +33,24 @@ const rateRide = async (req, res) => {
             return res.status(403).json({ msg: 'You were not a part of this ride' });
         }
 
-        //ek ride e ekbar e rating deya jabe (ekjoner jonno)
-        const existingRating = await query('SELECT * FROM ratings WHERE ride_id = $1 AND rater_id = $2', [ride_id, decoded.userId]);
-        if (existingRating.rows.length > 0) {
-            return res.status(400).json({ msg: 'You have already rated this ride' });
-        }
-
-        //rating insert korchi rater_id shoho
-        await query(
-            'INSERT INTO ratings (ride_id, rater_id, rating_value, comment) VALUES ($1, $2, $3, $4)',
-            [ride_id, decoded.userId, rating_value, comment]
+        //ek ride e ekjoner ekta rating thakbe; repeat submit hole update kore dibo
+        const existingRating = await query(
+            'SELECT rating_id FROM ratings WHERE ride_id = $1 AND rater_id = $2',
+            [ride_id, decoded.userId]
         );
+
+        if (existingRating.rows.length > 0) {
+            await query(
+                'UPDATE ratings SET rating_value = $1, comment = $2, created_at = NOW() WHERE rating_id = $3',
+                [parsedRating, normalizedComment || null, existingRating.rows[0].rating_id]
+            );
+        } else {
+            //rating insert korchi rater_id shoho
+            await query(
+                'INSERT INTO ratings (ride_id, rater_id, rating_value, comment) VALUES ($1, $2, $3, $4)',
+                [ride_id, decoded.userId, parsedRating, normalizedComment || null]
+            );
+        }
 
         //kar rating update hobe seta check korchi (driver naki passenger)
         const isRaterPassenger = decoded.userId === ride.passenger_id;
