@@ -93,6 +93,7 @@ CREATE TABLE Payments (
 CREATE TABLE Ratings (
     rating_id SERIAL PRIMARY KEY,
     ride_id INT NOT NULL REFERENCES Rides(ride_id),
+    rater_id INT NOT NULL REFERENCES Users(user_id),
     rating_value INT CHECK (rating_value BETWEEN 1 AND 5),
     comment TEXT,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
