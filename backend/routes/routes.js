@@ -1,7 +1,7 @@
 const express = require('express');
 const { loginPage, dbHealth, logoutPage } = require('../controller/login');
 const { dashboardPage } = require('../controller/dashboard');
-const { registerPage, registerAsAdmin, registerAsDriver, adminApproveDriver, registerVehicle, registerAsPassenger } = require('../controller/register');
+const { registerPage, registerAsAdmin, registerAsDriver, adminApproveDriver, adminRejectDriver, registerVehicle, registerAsPassenger } = require('../controller/register');
 const { authMiddleware } = require('../middleware/authMiddleware');
 const { getPassengerDashboard } = require('../controller/passengerDashboard');
 const { getDriverDashboard } = require('../controller/driverDashboard');

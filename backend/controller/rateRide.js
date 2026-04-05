@@ -5,8 +5,12 @@ const rateRide = async (req, res) => {
     const { ride_id } = req.params;
     const { rating_value, comment } = req.body;
 
+    // normalize payload so frontend can send numeric strings and empty comments safely
+    const parsedRating = Number(rating_value);
+    const normalizedComment = typeof comment === 'string' ? comment.trim() : null;
+
     //rating 1-5 er moddhe hoite hobe
-    if (!rating_value || rating_value < 1 || rating_value > 5) {
+    if (!Number.isFinite(parsedRating) || parsedRating < 1 || parsedRating > 5) {
         return res.status(400).json({ msg: 'Rating must be a number between 1 and 5' });
     }
 
@@ -29,33 +33,58 @@ const rateRide = async (req, res) => {
             return res.status(403).json({ msg: 'You were not a part of this ride' });
         }
 
-        //ek ride e ekbar e rating deya jabe
-        const existingRating = await query('SELECT * FROM ratings WHERE ride_id = $1', [ride_id]);
+        //ek ride e ekjoner ekta rating thakbe; repeat submit hole update kore dibo
+        const existingRating = await query(
+            'SELECT rating_id FROM ratings WHERE ride_id = $1 AND rater_id = $2',
+            [ride_id, decoded.userId]
+        );
+
         if (existingRating.rows.length > 0) {
-            return res.status(400).json({ msg: 'This ride has already been rated' });
+            await query(
+                'UPDATE ratings SET rating_value = $1, comment = $2, created_at = NOW() WHERE rating_id = $3',
+                [parsedRating, normalizedComment || null, existingRating.rows[0].rating_id]
+            );
+        } else {
+            //rating insert korchi rater_id shoho
+            await query(
+                'INSERT INTO ratings (ride_id, rater_id, rating_value, comment) VALUES ($1, $2, $3, $4)',
+                [ride_id, decoded.userId, parsedRating, normalizedComment || null]
+            );
         }
 
-        //rating insert korchi
-        await query(
-            'INSERT INTO ratings (ride_id, rating_value, comment) VALUES ($1, $2, $3)',
-            [ride_id, rating_value, comment]
-        );
+        //kar rating update hobe seta check korchi (driver naki passenger)
+        const isRaterPassenger = decoded.userId === ride.passenger_id;
+        const ratedUserId = isRaterPassenger ? ride.driver_id : ride.passenger_id;
+        const targetTable = isRaterPassenger ? 'drivers' : 'passengers';
 
-        //driver er new average rating calculate korchi ratings table theke
-        const avgResult = await query(
-            `SELECT AVG(rating_value) as new_avg 
-             FROM ratings r 
-             JOIN rides rd ON r.ride_id = rd.ride_id 
-             WHERE rd.driver_id = $1`,
-            [ride.driver_id]
-        );
+        // average calculate korchi current role wise
+        let avgQuery;
+        if (isRaterPassenger) {
+            // driver er avg calculate korbo jara passenger ra dise
+            avgQuery = `
+                SELECT AVG(r.rating_value) as new_avg 
+                FROM ratings r 
+                JOIN rides rd ON r.ride_id = rd.ride_id 
+                WHERE rd.driver_id = $1 AND r.rater_id = rd.passenger_id
+            `;
+        } else {
+            // passenger er avg calculate korbo jara driver ra dise
+            avgQuery = `
+                SELECT AVG(r.rating_value) as new_avg 
+                FROM ratings r 
+                JOIN rides rd ON r.ride_id = rd.ride_id 
+                WHERE rd.passenger_id = $1 AND r.rater_id = rd.driver_id
+            `;
+        }
 
-        //average rating update korchi
+        const avgResult = await query(avgQuery, [ratedUserId]);
+
+        // average rating update korchi target table e (drivers or passengers)
         if (avgResult.rows.length > 0 && avgResult.rows[0].new_avg) {
             const newAvg = parseFloat(avgResult.rows[0].new_avg).toFixed(2);
             await query(
-                'UPDATE drivers SET rating_average = $1 WHERE user_id = $2',
-                [newAvg, ride.driver_id]
+                `UPDATE ${targetTable} SET rating_average = $1 WHERE user_id = $2`,
+                [newAvg, ratedUserId]
             );
         }
 

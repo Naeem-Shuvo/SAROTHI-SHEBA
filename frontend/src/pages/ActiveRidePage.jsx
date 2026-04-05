@@ -73,11 +73,25 @@ function ActiveRidePage() {
       const endpoint = user.role === 'driver' ? '/dashboard/driver' : '/dashboard/passenger';
       const data = await api(endpoint);
       //rides array theke active ride ta khuje ber korchi
+      const isPendingCompletedRide = (r) => {
+        if (r.ride_status !== 'completed') return false;
+
+        //driver er jonno: rating deya na thakle completed ride active hishebe thakbe
+        if (user.role === 'driver') {
+          return !r.rated_by_me;
+        }
+
+        //passenger er jonno: payment ba rating pending holei completed ride active thakbe
+        const isPaymentDone = r.payment_status === 'paid';
+        const isRated = !!r.rated_by_me;
+        return !isPaymentDone || !isRated;
+      };
+
       const active = data.rides.find(r =>
         r.ride_status === 'requested' ||
         r.ride_status === 'accepted' ||
         r.ride_status === 'ongoing' ||
-        r.ride_status === 'completed' //completed ride o include kortesi jate passenger pay or rate kore
+        isPendingCompletedRide(r) //completed hole pending action thaklei active page e show korbe
       );
       //ride ta state e store kortesi
       setRide(active || null);
@@ -231,8 +245,12 @@ function ActiveRidePage() {
       toast.success('Rating submitted!');
       //submit hoye jaoar por rating modal ta bondho kore dibe
       setShowRating(false);
-      //history page e niye jabe
-      navigate('/rides/history');
+      //role onujayi thik dashboard e pathaye dibo
+      if (user.role === 'driver') {
+        navigate('/dashboard/driver');
+      } else {
+        navigate('/rides/history');
+      }
     } catch (err) {
       toast.error(err.message || 'Failed to submit rating');
     } finally {
@@ -328,6 +346,48 @@ function ActiveRidePage() {
     estimatedFare = (parseFloat(ride.base_fare) + (distance * parseFloat(ride.rate_per_km))).toFixed(2);
   } else if (ride.fare_amount) {
     estimatedFare = parseFloat(ride.fare_amount).toFixed(2);
+  }
+
+  // MASSIVE MODAL FOR DRIVER TO RATE PASSENGER
+  if (isDriver && ride.ride_status === 'completed') {
+    return (
+      <>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(18, 18, 18, 0.85)', backdropFilter: 'blur(10px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+          
+          <div className="dash-card" style={{ maxWidth: '400px', width: '100%', padding: '2rem' }}>
+            <h3 style={{ margin: '0 0 1rem', textAlign: 'center' }}>Rate your passenger</h3>
+            <p className="text-muted" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              How was the trip with {ride.passenger_name || 'the passenger'}?
+            </p>
+            {/* star selection UI */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
+              {[1, 2, 3, 4, 5].map(s => (
+                <Star
+                  key={s}
+                  size={40}
+                  onClick={() => setRating(s)}
+                  style={{ cursor: 'pointer', color: s <= rating ? '#FFD700' : 'var(--text-muted)', fill: s <= rating ? '#FFD700' : 'none', transition: 'all 0.2s' }}
+                />
+              ))}
+            </div>
+            {/* comment box */}
+            <textarea className="form-input" placeholder="Leave a comment (optional)..." value={comment} onChange={e => setComment(e.target.value)} style={{ minHeight: '100px', marginBottom: '1rem' }} />
+            <button className={`btn btn-primary ${actionLoading === 'rating' ? 'btn-loading' : ''}`} onClick={submitRating} disabled={!!actionLoading} style={{ width: '100%' }}>Done</button>
+          </div>
+
+        </div>
+
+        {/* background map */}
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1 }}>
+          <MapContainer center={defaultMapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            {pickupCoords && <Marker position={[pickupCoords.lat, pickupCoords.lng]}><Popup>Pickup</Popup></Marker>}
+            {dropoffCoords && <Marker position={[dropoffCoords.lat, dropoffCoords.lng]}><Popup>Drop-off</Popup></Marker>}
+            {routeCoords.length > 0 && <Polyline positions={routeCoords} color="var(--accent-primary)" weight={5} opacity={0.8} />}
+          </MapContainer>
+        </div>
+      </>
+    );
   }
 
   // MASSIVE MODAL FOR PASSENGER CHECKOUT

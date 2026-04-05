@@ -22,11 +22,20 @@ function AvailableRidesPage() {
   // accept button click korle loading state dharon korbe specific ride-er jonno
   const [actionLoading, setActionLoading] = useState(null);
 
+  //driver er live location rakhbo jate nearest ride sort/filter korte pari
+  const [driverLocation, setDriverLocation] = useState(null);
+
   // backend theke available ride list fetch korar logic handler
   const fetchRides = async () => {
     try {
+      if (!driverLocation) {
+        setError('Please allow location access to see nearby ride requests');
+        setRides([]);
+        return;
+      }
+
       // available rides endpoint theke data call kortesi
-      const data = await api('/rides/available');
+      const data = await api(`/rides/available?driver_lat=${driverLocation.lat}&driver_lng=${driverLocation.lng}`);
       setRides(data.rides);
       setError('');
     } catch (err) {
@@ -39,12 +48,52 @@ function AvailableRidesPage() {
 
   // component mount hoilei real time ride request load hobe
   useEffect(() => {
+    //driver er location niye tarpor nearby ride load kortesi
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported in this browser');
+      setLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setDriverLocation({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        });
+      },
+      () => {
+        setError('Location permission is required to show nearby rides');
+        setLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+    );
+
+    //notun request power jonno driver location periodic refresh korbo
+    const locationInterval = setInterval(() => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setDriverLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        },
+        () => {
+          //permission revoke hole existing value diye continue korbo
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+      );
+    }, 30000);
+
+    return () => clearInterval(locationInterval);
+  }, []);
+
+  useEffect(() => {
+    if (!driverLocation) return;
+
     fetchRides();
 
     // notun request power jonno proti 10 second por por automatic refresh kortesi
     const interval = setInterval(fetchRides, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [driverLocation]);
 
   // driver kono ride accept korle ei logic call hobe
   const handleAccept = async (rideId) => {
@@ -144,6 +193,10 @@ function AvailableRidesPage() {
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                         {ride.vehicle_type === 'CNG Auto' ? '🛺' : <Car size={14} />} {ride.vehicle_type}
                       </span>
+                      {/* distance nearest priority bujhanor jonno display */}
+                      {ride.distance_km != null && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><MapPin size={14} /> {Number(ride.distance_km).toFixed(2)} km away</span>
+                      )}
                     </div>
                   </div>
                   {/* Lead conversion action execution point button visual rendering logic layout display generation */}
