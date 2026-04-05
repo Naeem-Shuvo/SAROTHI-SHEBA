@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
+import { Clock } from 'lucide-react';
 
 function PendingApprovalPage() {
     return (
         <div className="pending-container">
             <div className="pending-card">
-                <span className="pending-icon">⏳</span>
+                <div className="pending-icon"><Clock size={64} color="var(--accent-secondary)" /></div>
 
                 <h1 className="pending-title">Application Submitted!</h1>
 

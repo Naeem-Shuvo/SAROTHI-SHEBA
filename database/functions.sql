@@ -22,10 +22,12 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION insert_payment_on_completion()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- shudhumatro completed holei payment insert hobe
+    -- when a ride is completed, insert a pending payment record
+    -- SSLCommerz will update this to 'paid' after successful payment
     IF NEW.ride_status = 'completed' AND OLD.ride_status != 'completed' THEN
         INSERT INTO payments (ride_id, amount, payment_method, payment_status)
-        VALUES (NEW.ride_id, NEW.fare_amount, 'cash', 'completed');
+        VALUES (NEW.ride_id, NEW.fare_amount, 'pending', 'pending')
+        ON CONFLICT (ride_id) DO NOTHING;
     END IF;
     RETURN NEW;
 END;
@@ -65,12 +67,12 @@ BEGIN
     -- calculate_fare function call korchi
     calculated_fare := calculate_fare(p_distance_km, v_type_id);
     
-    -- ride ta update korchi
+    -- update the ride with distance, fare, status and drop timestamp
     UPDATE rides 
     SET ride_status = 'completed', 
         distance_km = p_distance_km, 
         fare_amount = calculated_fare, 
-        completed_at = NOW()
+        drop_time = NOW()
     WHERE ride_id = p_ride_id;
     
     -- passenger er total distance update korchi
@@ -78,13 +80,6 @@ BEGIN
     SET total_distance = total_distance + p_distance_km 
     WHERE user_id = v_passenger_id;
 
-    -- commit korchi
-    COMMIT;
-EXCEPTION
-    WHEN OTHERS THEN
-        -- kono error hole rollback korchi
-        ROLLBACK;
-        RAISE;
 END;
 $$;
 

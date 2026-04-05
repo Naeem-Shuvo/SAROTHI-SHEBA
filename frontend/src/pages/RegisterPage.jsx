@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { AlertTriangle } from 'lucide-react';
 
 function RegisterPage() {
     const [formData, setFormData] = useState({
@@ -64,8 +65,8 @@ function RegisterPage() {
                 </div>
 
                 {error && (
-                    <div className="alert alert-error">
-                        <span>⚠</span> {error}
+                    <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <AlertTriangle size={18} /> {error}
                     </div>
                 )}
 

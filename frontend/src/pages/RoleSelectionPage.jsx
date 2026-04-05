@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { Car, Bike, AlertTriangle, User } from 'lucide-react';
 
 function RoleSelectionPage() {
     const [showLicenseForm, setShowLicenseForm] = useState(false);
@@ -66,8 +67,8 @@ function RoleSelectionPage() {
                 </div>
 
                 {error && (
-                    <div className="alert alert-error">
-                        <span>⚠</span> {error}
+                    <div className="alert alert-error" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <AlertTriangle size={18} /> {error}
                     </div>
                 )}
 
@@ -78,7 +79,7 @@ function RoleSelectionPage() {
                         onClick={!loading ? handlePassengerSelect : undefined}
                         style={{ opacity: loading ? 0.6 : 1 }}
                     >
-                        <span className="role-icon">🚘</span>
+                        <div className="role-icon"><User size={48} /></div>
                         <h3 className="role-title">Passenger</h3>
                         <p className="role-desc">Book rides and travel comfortably to your destination</p>
                     </div>
@@ -89,7 +90,7 @@ function RoleSelectionPage() {
                         onClick={!loading ? () => setShowLicenseForm(true) : undefined}
                         style={{ opacity: loading ? 0.6 : 1 }}
                     >
-                        <span className="role-icon">🏍️</span>
+                        <div className="role-icon"><Bike size={48} /></div>
                         <h3 className="role-title">Driver</h3>
                         <p className="role-desc">Accept rides and earn money on your own schedule</p>
                     </div>

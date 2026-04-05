@@ -38,6 +38,14 @@ const updateRideStatus = async (req, res) => {
             await query('UPDATE rides SET ride_status = $1 WHERE ride_id = $2', [status, ride_id]);
         }
 
+        // notify both passenger and driver about the status change via socket
+        if (global.io) {
+            global.io.to(`user_${ride.passenger_id}`).emit('ride_status_update', { ride_id, status });
+            if (ride.driver_id) {
+                global.io.to(`user_${ride.driver_id}`).emit('ride_status_update', { ride_id, status });
+            }
+        }
+
         res.status(200).json({ msg: `Ride status updated to '${status}'` });
 
     } catch (error) {

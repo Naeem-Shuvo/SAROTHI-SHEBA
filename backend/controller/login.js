@@ -27,7 +27,7 @@ const { blacklistToken } = require('../middleware/tokenBlacklist');
 // }
 
 const loginPage = async (req, res) => {
-    const { username, password,email,phone_number } = req.body;
+    const { username, password, email, phone_number } = req.body;
     if ((!username && !email && !phone_number) || !password) {
         return res.status(400).json({ message: 'Email or phone_number and password are required' });
     }
@@ -35,7 +35,7 @@ const loginPage = async (req, res) => {
     try {
         //logic allows a user to log in creatively using either their username, email address, or phone number.
         const userResult = await query(
-            'SELECT user_id, name, email, phone_number, password_hash FROM users WHERE username = $1 OR email = $1 OR phone_number = $1 LIMIT 1',
+            'SELECT user_id, name, email, phone_number, password_hash FROM users WHERE name = $1 OR email = $1 OR phone_number = $1 LIMIT 1',
             [username || email || phone_number]
             //LIMIT 1 means it returns only one matched user.
         );
@@ -84,7 +84,7 @@ const loginPage = async (req, res) => {
 
         const tokenPayload = {
             userId: user.user_id,
-            username: user.name,
+            name: user.name,
             role
         };
 
@@ -111,6 +111,7 @@ const loginPage = async (req, res) => {
             }
         });
     } catch (error) {
+        console.error('Login error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
