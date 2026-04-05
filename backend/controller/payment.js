@@ -13,6 +13,7 @@ const initPayment = async (req, res) => {
 
     try {
         // fetch the ride details and validate it exists and is completed
+        //oi ride er passenger er detail fetch
         const rideResult = await query(
             `SELECT r.*, u.name AS passenger_name, u.email AS passenger_email, u.phone_number
              FROM rides r
@@ -66,6 +67,8 @@ const initPayment = async (req, res) => {
             cus_name: ride.passenger_name,
             cus_email: ride.passenger_email,
             cus_add1: ride.pickup_address || 'Dhaka',
+            
+            //default dhaka rakhtesi, mandatory field tai
             cus_city: 'Dhaka',
             cus_state: 'Dhaka',
             cus_postcode: '1000',
@@ -91,6 +94,7 @@ const initPayment = async (req, res) => {
                 [tran_id, 'pending', 'sslcommerz', ride_id]
             );
         } else {
+            //jodi due rakhe
             await query(
                 'INSERT INTO payments (ride_id, amount, payment_method, transaction_id, payment_status) VALUES ($1, $2, $3, $4, $5)',
                 [ride_id, ride.fare_amount, 'sslcommerz', tran_id, 'pending']

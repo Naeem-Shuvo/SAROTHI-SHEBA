@@ -5,45 +5,62 @@ import api from '../services/api';
 import { LayoutDashboard, Users, Car, Shield, AlertTriangle, CheckCircle, Banknote, List, Smartphone } from 'lucide-react';
 
 function AdminRidesPage() {
+
+  //admin user details r logout function hook theke nisi
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  //sobgula ride er data ekta list state e store kortesi
   const [rides, setRides] = useState([]);
+
+  //data fetch hobar shomoy loading status dharon korbe
   const [loading, setLoading] = useState(true);
+
+  //error message dekhate hole ei state update hobe
   const [error, setError] = useState('');
+
+  //ride status onujayi (requested, completed) filter korar jonno state
   const [statusFilter, setStatusFilter] = useState('');
 
-  // fetch rides with optional status filter
+  //backend theke ride list fetch korar function, status filter logic soho
   const fetchRides = async (status = '') => {
     setLoading(true);
     try {
+      //filter status handle kore endpoint set kortesi
       const endpoint = status ? `/admin/rides?status=${status}` : '/admin/rides';
       const data = await api(endpoint);
+      //api theke asha ride gula state e set kortesi
       setRides(data.rides);
     } catch (err) {
       setError(err.message || 'Failed to load rides');
     } finally {
+      //loading state off kore ditesi data ashar por
       setLoading(false);
     }
   };
 
+  // status filter update hoilei component abar ride fetch korbe
   useEffect(() => {
     fetchRides(statusFilter);
   }, [statusFilter]);
 
-  // handle admin logout
+  //admin logout handler logic
   const handleLogout = async () => {
-    try { await api('/logout', { method: 'POST' }); } catch (err) { /* logout anyway */ }
+    try {
+      //session clear korar jonno server e logout request pathaitesi 
+      await api('/logout', { method: 'POST' });
+    } catch (err) { /* error hoileo local logout hobe */ }
     logout();
     navigate('/login');
   };
 
-  // calculate quick stats from loaded rides
+  //completed ride gula filter kore alada kortesi revenue calculation er jonno
   const completedRides = rides.filter(r => r.ride_status === 'completed');
+  //completed ride theke fare amount jog kore total revenue ber kortesi
   const totalRevenue = completedRides.reduce((sum, r) => sum + parseFloat(r.fare_amount || 0), 0);
 
   return (
     <div className="dash-layout">
-      {/* Sidebar */}
       <aside className="dash-sidebar">
         <div className="dash-sidebar-logo">SAROTHI SHEBA</div>
         <nav className="dash-nav">
@@ -62,7 +79,6 @@ function AdminRidesPage() {
         </button>
       </aside>
 
-      {/* Main Content */}
       <main className="dash-main">
         <header className="dash-header">
           <h1 className="dash-title">Ride Monitor</h1>
@@ -78,7 +94,6 @@ function AdminRidesPage() {
           </div>
         )}
 
-        {/* Quick Stats */}
         <div className="dash-stats-grid" style={{ marginBottom: '1.5rem' }}>
           <div className="dash-stat-card">
             <span className="dash-stat-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><List size={24} color="var(--accent-info)" /></span>
@@ -103,7 +118,7 @@ function AdminRidesPage() {
           </div>
         </div>
 
-        {/* Filter Bar */}
+        {/* Filter Selection Bar - status wise ride filter korar buttons */}
         <div className="dash-card" style={{ marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
             <span style={{ fontWeight: 600, marginRight: '0.5rem' }}>Filter by Status:</span>
@@ -119,7 +134,6 @@ function AdminRidesPage() {
           </div>
         </div>
 
-        {/* Rides Table */}
         <div className="dash-card">
           <h2 className="dash-card-title">
             All Rides

@@ -5,57 +5,74 @@ import api from '../services/api';
 import { LayoutDashboard, Users, Car, Shield, AlertTriangle, UserCheck, Banknote, Bike } from 'lucide-react';
 
 function AdminDashboard() {
+  //auth context theke user details r logout function nisi
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  //dashboard er stats (total users, drivers) state e rakhtesi
   const [stats, setStats] = useState(null);
+
+  //pending driver application gula ekta array te store kortesi
   const [pendingApps, setPendingApps] = useState([]);
+
   const [loading, setLoading] = useState(true);
+
+  //error message dekhate hole ei state use kortesi
   const [error, setError] = useState('');
+
+  //approve ba reject logic cholle button e loading dekhacchi
   const [actionLoading, setActionLoading] = useState(null);
 
-  // fetch dashboard stats and pending driver applications
+  //admin dashboard er stats r pending list fetch hobe backend theke
   const fetchDashboard = async () => {
     try {
       const data = await api('/dashboard/admin');
+      //backend theke asha data gula state e set kortesi
       setStats(data.stats);
       setPendingApps(data.pendingApplications);
     } catch (err) {
+      //failed hoile error message state e rekhe dicchi
       setError(err.message || 'Failed to load dashboard');
     } finally {
+      //loading shesh, ekhon ui show kora jabe
       setLoading(false);
     }
   };
 
+  //component mounted hoilei dashboard data load hobe
   useEffect(() => {
     fetchDashboard();
   }, []);
 
-  // approve a pending driver application
+  //driver application approve korar logic
   const handleApproveDriver = async (userId) => {
     setActionLoading(userId);
     try {
+      //backend api te approve request pathacchi
       await api('/admin/approve-driver', {
         method: 'POST',
         body: JSON.stringify({ user_id: userId }),
       });
-      // refresh the list after approval
+      //state updated thakar jonno dashboard abar refresh kortesi
       await fetchDashboard();
     } catch (err) {
       setError(err.message || 'Failed to approve driver');
     } finally {
+      //action loading off korlam
       setActionLoading(null);
     }
   };
 
-  // reject a pending driver application
+  //driver application reject korar logic
   const handleRejectDriver = async (userId) => {
     setActionLoading(userId);
     try {
+      //backend api pathaitesi driver reject korar jonno
       await api('/admin/reject-driver', {
         method: 'POST',
         body: JSON.stringify({ user_id: userId }),
       });
-      // refresh the list after rejection
+      //list up to date rakhar jonno abar refresh kortesi
       await fetchDashboard();
     } catch (err) {
       setError(err.message || 'Failed to reject driver');
@@ -64,15 +81,18 @@ function AdminDashboard() {
     }
   };
 
-  // handle admin logout
+  //admin logout logic
   const handleLogout = async () => {
     try {
+      //server theke session terminate kortesi
       await api('/logout', { method: 'POST' });
-    } catch (err) { /* logout anyway */ }
+    } catch (err) { /* failed hoileo local logout hobe */ }
+    //local state clear r login page e pathay ditesi
     logout();
     navigate('/login');
   };
 
+  // data load na hoba porjonto spinner dekhabe
   if (loading) {
     return (
       <div className="dash-loading">
@@ -84,7 +104,6 @@ function AdminDashboard() {
 
   return (
     <div className="dash-layout">
-      {/* Sidebar - links now navigate to real pages */}
       <aside className="dash-sidebar">
         <div className="dash-sidebar-logo">SAROTHI SHEBA</div>
         <nav className="dash-nav">
@@ -103,7 +122,6 @@ function AdminDashboard() {
         </button>
       </aside>
 
-      {/* Main Content */}
       <main className="dash-main">
         <header className="dash-header">
           <h1 className="dash-title">Admin Dashboard</h1>
@@ -119,7 +137,6 @@ function AdminDashboard() {
           </div>
         )}
 
-        {/* System Stats */}
         <div className="dash-stats-grid">
           <div className="dash-stat-card">
             <span className="dash-stat-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Users size={24} color="var(--accent-info)" /></span>
@@ -158,7 +175,6 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* Pending Driver Applications - now with Reject button */}
         <div className="dash-card">
           <h2 className="dash-card-title">
             Pending Driver Applications

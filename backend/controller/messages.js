@@ -37,6 +37,7 @@ const sendMessage = async (req, res) => {
 
         // determine the recipient and notify them via socket
         const recipientId = decoded.userId === ride.passenger_id ? ride.driver_id : ride.passenger_id;
+        //socket.io chalu ache kina
         if (global.io && recipientId) {
             global.io.to(`user_${recipientId}`).emit('new_message', {
                 ...newMessage,
