@@ -13,7 +13,7 @@ export function SocketProvider({ children }) {
     const { user } = useAuth();
 
     useEffect(() => {
-        // user logged in thaklei shudhu connect hobe
+        // user logged in thaklei shudhu connect hobe . 
         if (user) {
             const newSocket = io('http://localhost:4000');
 
