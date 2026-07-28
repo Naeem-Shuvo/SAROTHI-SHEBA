@@ -1,4 +1,5 @@
-const { query } = require('../../database/db');
+const { query, withTransaction } = require('../../database/db');
+const { enqueueEvent } = require('../../database/outbox');
 
 // send a message in an active ride chat
 const sendMessage = async (req, res) => {
@@ -25,25 +26,34 @@ const sendMessage = async (req, res) => {
             return res.status(403).json({ msg: 'You are not part of this ride' });
         }
 
-        // insert the message into the messages table
-        const result = await query(
-            `INSERT INTO messages (ride_id, sender_id, message_text)
-             VALUES ($1, $2, $3)
-             RETURNING message_id, ride_id, sender_id, message_text, sent_at`,
-            [ride_id, decoded.userId, message_text.trim()]
-        );
-
-        const newMessage = result.rows[0];
-
-        // determine the recipient and notify them via socket
+        // determine the recipient before the transaction — needed either way
         const recipientId = decoded.userId === ride.passenger_id ? ride.driver_id : ride.passenger_id;
-        //socket.io chalu ache kina
-        if (global.io && recipientId) {
-            global.io.to(`user_${recipientId}`).emit('new_message', {
-                ...newMessage,
-                sender_name: decoded.username
-            });
-        }
+
+        const newMessage = await withTransaction(async (client) => {
+            const result = await client.query(
+                `INSERT INTO messages (ride_id, sender_id, message_text)
+                 VALUES ($1, $2, $3)
+                 RETURNING message_id, ride_id, sender_id, message_text, sent_at`,
+                [ride_id, decoded.userId, message_text.trim()]
+            );
+            const inserted = result.rows[0];
+
+            // Fixes P1-8: previously emitted right after query() returned,
+            // outside any transaction — a message could appear in the
+            // recipient's chat even if something after it in the request
+            // failed. Now it can only be seen after commit.
+            if (recipientId) {
+                await enqueueEvent(client, {
+                    aggregateType: 'ride',
+                    aggregateId: String(ride_id),
+                    eventType: 'new_message',
+                    rooms: [`user_${recipientId}`],
+                    data: { ...inserted, sender_name: decoded.username }
+                });
+            }
+
+            return inserted;
+        }, { actorId: decoded.userId });
 
         res.status(201).json({ msg: 'Message sent', message: newMessage });
     } catch (error) {

@@ -1,7 +1,7 @@
 const jwt=require('jsonwebtoken');
 //env theke secret key nite import kora
 require('dotenv').config();
-const { query } = require('../../database/db');
+const { query, withTransaction } = require('../../database/db');
 const crypto=require('crypto');
 
 const registerPage=async (req,res)=>{
@@ -14,10 +14,21 @@ const registerPage=async (req,res)=>{
     const validateInputs = (email, phone, name) => {
         const emailPattern = /^[A-Za-z0-9._%+-]+@gmail\.com$/i;
         const phonePattern = /^(\+88)?01[3-9][0-9]{8}$/;
-        const namePattern = /^[A-Za-z0-9 ]+$/;
+        // Letters and spaces only — no digits. Tightened to match
+        // precheck_info_trigger (database/migrations/20260728120003),
+        // a DB-level backstop that predates this refinement and was only
+        // actually applied for the first time in Phase 1. It was
+        // stricter than this check, which used to allow digits in a
+        // name — the mismatch meant a name like "Test 2" passed this
+        // check but was then rejected by the trigger, surfacing as a
+        // confusing 500 instead of a clean 400. Now consistent: same
+        // rule enforced at both layers, app-level for a clean error
+        // message, DB-level as the real backstop regardless of what the
+        // app does.
+        const namePattern = /^[A-Za-z ]+$/;
 
         if (!emailPattern.test(email)) return "Invalid email format. Only @gmail.com is allowed.";
-        if (!namePattern.test(name)) return "Invalid username. Only letters, numbers, and spaces are allowed.";
+        if (!namePattern.test(name)) return "Invalid username. Only letters and spaces are allowed.";
         if (!phonePattern.test(phone)) return "Invalid phone number format. Must start with 01 or +8801.";
         return null;
     }
@@ -132,25 +143,33 @@ const registerAsAdmin=async(req,res)=>{
         const {user_id}=req.body;
         const resultPending=await query(
             'select * from driver_applications where user_id=$1 and status=$2',
-            [user_id, 'pending'] 
+            [user_id, 'pending']
         )
         if(resultPending.rows.length===0){
             return res.status(404).json({msg: 'No pending driver application found for this user_id'});
         }
-        //let kromik;
         const license=resultPending.rows[0].license_number;
-        // const plate_Number=resultPending.rows[0].plate_number; //admin ke show kori
-        //**ekhane ektu kaj korbi frontend theke admin allow korle then db in hbe */
 
-        await query(
-            'insert into Drivers (user_id, license_number, rating_average, status) values ($1, $2, 0, $3) on conflict (user_id) do nothing',
-            [user_id, license, 'active']
-        )
-
-        await query(
-            'update driver_applications set status=$1 where user_id=$2',
-            ['approved', user_id]
-        );
+        // Two dependent writes (insert driver, mark application approved)
+        // now share one transaction — previously two separate query()
+        // calls, each committing independently, so a crash between them
+        // could leave a driver row inserted but the application still
+        // 'pending' forever, or vice versa (P1-6's shape).
+        //
+        // rating_average is a GENERATED column since the Phase 2 ratings
+        // rebuild (migration 20260728130006) — it can no longer be
+        // inserted into directly; it starts at NULL via
+        // rating_count/rating_sum defaulting to 0.
+        await withTransaction(async (client) => {
+            await client.query(
+                'insert into Drivers (user_id, license_number, status) values ($1, $2, $3) on conflict (user_id) do nothing',
+                [user_id, license, 'active']
+            );
+            await client.query(
+                'update driver_applications set status=$1 where user_id=$2',
+                ['approved', user_id]
+            );
+        }, { actorId: adminDecoded.userId });
 
         return res.status(200).json({
             msg:'Your vehicle and registration approved, now exit and login',

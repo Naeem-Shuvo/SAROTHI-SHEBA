@@ -9,7 +9,7 @@
 Phase  0 ▰▰▰▰▰▰▰▰▰▱ 95%   Triage & secrets — all code + rotation done; checkpoint remains
 Phase  1 ▰▰▰▰▰▰▰▰▰▱ 95%   Foundation — all exit criteria proven; checkpoint remains
 Phase  2 ▰▰▰▰▰▰▰▰▰▱ 90%   Schema v2 — 8 migrations applied, round-tripped, verified
-Phase  3 ▱▱▱▱▱▱▱▱▱▱  0%   Concurrency ★
+Phase  3 ▰▰▰▰▰▰▰▱▱▱ 70%   Concurrency ★ — outbox + controller migration done, saga/Valkey lock deferred
 Phase  4 ▱▱▱▱▱▱▱▱▱▱  0%   Geospatial ★
 Phase  5 ▱▱▱▱▱▱▱▱▱▱  0%   Security
 Phase  6 ▱▱▱▱▱▱▱▱▱▱  0%   Events
@@ -137,23 +137,42 @@ fixing P1-12 — proven: deactivated user's ride history stays FK-intact, and th
 
 ---
 
-## Phase 3 — Concurrency ★ ⬜
+## Phase 3 — Concurrency ★ 🟨 (70% — outbox + controller migration proven; saga/Valkey-lock deferred)
+
+Every controller with a genuine multi-statement write or a `global.io.emit` call now uses
+`withTransaction` + the outbox pattern: `rideRequest.js`, `rideAccept.js`, `rideStatus.js`,
+`messages.js`, `register.js` (`adminApproveDriver`), `payment.js` (all six handlers). Reads and
+genuinely single-statement writes were deliberately left on plain `query()` — no correctness reason
+to wrap them, and doing so anyway would be padding, not rigor.
 
 **Exit criteria**
-- [ ] 50 simultaneous accepts → exactly 1 winner, verified via `ride_events`
-- [ ] 20 simultaneous requests from one passenger → 1 winner, losers fail on the **constraint**
-- [ ] Duplicate SSLCommerz callback → one settlement
-- [ ] Gateway amount mismatch → rejected
-- [ ] Kill API mid-transaction → zero partial writes
-- [ ] Kill relay mid-publish → redelivered, no duplicate effect
-- [ ] `grep -r "global.io" backend/` → empty
+- [x] 50 simultaneous accepts → exactly 1 winner ✅ **proven at the real HTTP layer**: 50 distinct registered/approved drivers, all `POST /rides/accept` on the same `ride_id` simultaneously — 1 accepted, 49 rejected
+- [x] 20 simultaneous requests from one passenger → 1 winner, losers fail on the constraint ✅ proven the same way: 20 concurrent `POST /rides/request` from one passenger — 1×201, 19×409 (the `23505` from `rides_one_active_per_passenger`, not an app-level race)
+- [x] Duplicate SSLCommerz callback → one settlement ✅ proven the core mechanism directly (8 concurrent attempts to claim the same `idempotency_keys` row → exactly 1 "SETTLED_NOW", 7 "ALREADY_SETTLED"). **Full live SSLCommerz round-trip not testable** — no sandbox account exists (deferred to Phase 3/4 per the Phase 0 decision); `settlePayment()`'s amount-verification branch is written and reviewed but not independently exercised without live credentials.
+- [~] Gateway amount mismatch → rejected — logic written (`reportedMinor !== expectedMinor` → marks `failed`, never `paid`), not independently proven for the same reason as above
+- [x] Kill API mid-transaction → zero partial writes ✅ proven directly: `withTransaction` + `enqueueEvent`, then a deliberate throw — the outbox row **never came into existence**, not just "never published"
+- [~] Kill relay mid-publish → redelivered, no duplicate effect — relay design analyzed and documented (emit-then-mark-published ordering, so a crash mid-batch produces at most a duplicate emit, never a lost one) but not fault-injected under an actual kill
+- [x] `grep -r "global.io" backend/` → **zero controller files call `.emit`/`.to`** ✅ (two references remain: an explanatory comment, and `startPoint.js`'s deliberate, documented exception for the ephemeral `driver_location_update` GPS stream, which has no state worth making transactional)
 
-**Checkpoint 3 — "Concurrency: the deep session"** ⬜
-- [ ] A · Optimistic vs pessimistic
-- [ ] B · Isolation levels + write skew (two-terminal demos)
-- [ ] C · `SKIP LOCKED` scaling demo
-- [ ] D · Outbox & delivery guarantees
-- [ ] Self-check passed (7 questions)
+**Deliberately deferred / trimmed** (given the size of Phases 4-9 remaining): Toxiproxy fault
+injection (better fits Phase 7's load/chaos infra, which isn't built yet); a Valkey distributed-lock
+helper (nothing today needs cross-system coordination — genuinely first needed in Phase 4's matching
+engine, will build it there rather than as unused scaffolding now); `pg_advisory_xact_lock` (no
+current controller has a scenario requiring it beyond the row-level locking `complete_ride` already
+uses); an explicit "saga" abstraction with formal compensating actions (cancel-after-accept,
+driver-no-show) — the transition trigger enforces legal states and each controller handles its own
+error path, but there's no unified saga orchestrator yet.
+
+**A real bug found only by load-testing this:** applying the previously-dormant `precheck_info_trigger`
+in Phase 1 introduced a DB-level rule (`name` = letters and spaces only) stricter than `register.js`'s
+own validation (which allowed digits). A name like "Driver 2" passed the app check, then hit the
+trigger and 500'd. Fixed by tightening the app-level regex to match — same rule enforced at both
+layers now, consistent with the "database as last line of defense, app validates for clean errors"
+principle. Also fixed the same `rating_average`-is-now-`GENERATED` regression from Phase 2 recurring
+in `adminApproveDriver`'s driver INSERT (an untouched-until-now code path that would have thrown on
+the very first real driver approval).
+
+**Checkpoint 3** — suspended per user instruction (see Phase 2 note).
 
 ---
 

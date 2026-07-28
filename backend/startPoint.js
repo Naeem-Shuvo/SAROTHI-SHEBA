@@ -7,6 +7,7 @@ const config = require('./config'); // validates the whole env; loads dotenv its
 const logger = require('./logger');
 const router = require('./routes/routes');
 const { testConnection, closePool } = require('../database/db');
+const { startOutboxRelay, stopOutboxRelay } = require('./outboxRelay');
 
 const app = express();
 
@@ -30,9 +31,14 @@ const io = new Server(server, {
     cors: { origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
 });
 
-// make io accessible globally so controllers can emit events
-// ⚠️ Global mutable state, untestable/unmockable (P2-18) — Phase 3 replaces
-// this with the outbox pattern; controllers stop touching io directly.
+// Phase 3: controllers no longer touch io directly (P2-18's global
+// mutable state, untestable/unmockable). They enqueue an outbox event
+// inside their withTransaction call instead (database/outbox.js); only
+// outboxRelay.js — started below — holds a reference to io and turns
+// committed outbox rows into real emits. global.io is kept only for the
+// driver_location_update handler just below, which is a live, ephemeral
+// stream with no state to persist — there is nothing to make transactional
+// about a GPS ping that's obsolete the instant a newer one arrives.
 global.io = io;
 
 // handle new socket connections
@@ -75,6 +81,8 @@ async function startServer() {
         server.listen(config.PORT, () => {
             logger.info({ port: config.PORT }, 'Server is running');
         });
+
+        startOutboxRelay(io);
     } catch (error) {
         logger.error({ err: error }, 'Failed to start server');
         process.exit(1);
@@ -99,6 +107,8 @@ async function shutdown(signal) {
         process.exit(1);
     }, 10_000);
     forceExitTimer.unref();
+
+    stopOutboxRelay();
 
     try {
         await new Promise((resolve, reject) => {

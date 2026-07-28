@@ -1,4 +1,5 @@
-const { query } = require('../../database/db');
+const { query, withTransaction } = require('../../database/db');
+const { enqueueEvent } = require('../../database/outbox');
 
 const updateRideStatus = async (req, res) => {
     const decoded = req.user;
@@ -19,7 +20,7 @@ const updateRideStatus = async (req, res) => {
 
         const ride = rideResult.rows[0];
 
-        //shudhumatro driver e ongoing ba completed e change korte parbe status 
+        //shudhumatro driver e ongoing ba completed e change korte parbe status
         if ((status === 'ongoing' || status === 'completed') && decoded.userId !== ride.driver_id) {
             return res.status(403).json({ msg: 'Only the assigned driver can update this ride' });
         }
@@ -29,21 +30,48 @@ const updateRideStatus = async (req, res) => {
             if (!distance_km || distance_km <= 0) {
                 return res.status(400).json({ msg: 'distance_km is required to complete a ride' });
             }
-
-            // SQL procedure diye ride update korchi
-            await query('CALL complete_ride($1, $2)', [ride_id, distance_km]);
-
-        } else {
-            // completed na hole shudhu status update korchi
-            await query('UPDATE rides SET ride_status = $1 WHERE ride_id = $2', [status, ride_id]);
         }
 
-        // notify both passenger and driver about the status change via socket
-        if (global.io) {
-            global.io.to(`user_${ride.passenger_id}`).emit('ride_status_update', { ride_id, status });
-            if (ride.driver_id) {
-                global.io.to(`user_${ride.driver_id}`).emit('ride_status_update', { ride_id, status });
+        try {
+            await withTransaction(async (client) => {
+                if (status === 'completed') {
+                    // The stored procedure is idempotent and state-guarded
+                    // as of migration 20260728130008 (P1-9) — a duplicate
+                    // call is a safe no-op, not a double-counted distance.
+                    // check_ride_status_transition_trigger (migration
+                    // 20260728130001) validates the transition itself;
+                    // an illegal jump raises here and rolls the whole
+                    // transaction back, so no partial state or stray
+                    // outbox event can ever result from a rejected one.
+                    await client.query('CALL complete_ride($1, $2)', [ride_id, distance_km]);
+                } else {
+                    await client.query(
+                        'UPDATE rides SET ride_status = $1, version = version + 1 WHERE ride_id = $2',
+                        [status, ride_id]
+                    );
+                }
+
+                // Fixes P1-8. Also fixes a real, previously-undetected bug:
+                // SocketContext.jsx's "please pay the driver" toast checks
+                // `data.ride_status === 'completed'`, but this used to emit
+                // only `status` — a key mismatch that silently made that
+                // toast permanently dead code. Both keys are included now.
+                const rooms = [`user_${ride.passenger_id}`];
+                if (ride.driver_id) rooms.push(`user_${ride.driver_id}`);
+
+                await enqueueEvent(client, {
+                    aggregateType: 'ride',
+                    aggregateId: String(ride_id),
+                    eventType: 'ride_status_update',
+                    rooms,
+                    data: { ride_id: Number(ride_id), status, ride_status: status }
+                });
+            }, { actorId: decoded.userId });
+        } catch (error) {
+            if (error.message && error.message.startsWith('Illegal ride_status transition')) {
+                return res.status(409).json({ msg: `Cannot change status from '${ride.ride_status}' to '${status}'` });
             }
+            throw error;
         }
 
         res.status(200).json({ msg: `Ride status updated to '${status}'` });

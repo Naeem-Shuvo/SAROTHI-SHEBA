@@ -1,4 +1,5 @@
-const { query } = require('../../database/db');
+const { query, withTransaction } = require('../../database/db');
+const { enqueueEvent } = require('../../database/outbox');
 
 const requestRide = async (req, res) => {
     const decoded = req.user;
@@ -21,14 +22,18 @@ const requestRide = async (req, res) => {
     }
 
     try {
-        // check if the passenger already has an active ride
+        // friendly pre-check for a nice error message — correctness does
+        // NOT depend on this; rides_one_active_per_passenger (a partial
+        // unique index, migration 20260728130002) is what actually
+        // prevents the race, at the database, unconditionally. See
+        // ULTIMATE_REFINEMENT_PLAN.md §4.4.
         const activeRide = await query(
-            `SELECT ride_id FROM rides 
+            `SELECT ride_id FROM rides
              WHERE passenger_id = $1 AND ride_status IN ('requested', 'accepted', 'ongoing')`,
             [decoded.userId]
         );
         if (activeRide.rows.length > 0) {
-            return res.status(400).json({ msg: 'You already have an active ride' });
+            return res.status(409).json({ msg: 'You already have an active ride' });
         }
 
         // validate that the vehicle type exists in the database
@@ -40,26 +45,50 @@ const requestRide = async (req, res) => {
             return res.status(400).json({ msg: 'Invalid vehicle type' });
         }
 
-        // insert the ride with both coordinates and text addresses
-        const result = await query(
-            `INSERT INTO rides (passenger_id, vehicle_type_id, pickup_address, drop_address, 
-                                pickup_latitude, pickup_longitude, drop_latitude, drop_longitude, ride_status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'requested')
-             RETURNING ride_id, passenger_id, vehicle_type_id, pickup_address, drop_address, 
-                       pickup_latitude, pickup_longitude, drop_latitude, drop_longitude, 
-                       ride_status, requested_at`,
-            [decoded.userId, vehicle_type_id, pickup_address, drop_address, 
-             pickup_lat, pickup_lng, drop_lat, drop_lng]
-        );
+        let ride;
+        try {
+            ride = await withTransaction(async (client) => {
+                const result = await client.query(
+                    `INSERT INTO rides (passenger_id, vehicle_type_id, pickup_address, drop_address,
+                                        pickup_latitude, pickup_longitude, drop_latitude, drop_longitude, ride_status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'requested')
+                     RETURNING ride_id, passenger_id, vehicle_type_id, pickup_address, drop_address,
+                               pickup_latitude, pickup_longitude, drop_latitude, drop_longitude,
+                               ride_status, requested_at`,
+                    [decoded.userId, vehicle_type_id, pickup_address, drop_address,
+                     pickup_lat, pickup_lng, drop_lat, drop_lng]
+                );
+                const newRide = result.rows[0];
 
-        // broadcast the new ride to all connected drivers via socket
-        if (global.io) {
-            global.io.emit('new_ride_request', result.rows[0]);
+                // Fixes P1-8: this event can now ONLY be seen by clients
+                // after the INSERT above has actually committed — never
+                // before, never if this transaction rolls back. Still a
+                // broadcast to the whole 'drivers' room (nothing here
+                // scopes it by proximity/vehicle type/etc — that's Phase
+                // 4's matching engine); the fix in THIS phase is the
+                // atomicity guarantee, not the targeting.
+                await enqueueEvent(client, {
+                    aggregateType: 'ride',
+                    aggregateId: String(newRide.ride_id),
+                    eventType: 'new_ride_request',
+                    rooms: ['drivers'],
+                    data: newRide
+                });
+
+                return newRide;
+            }, { actorId: decoded.userId });
+        } catch (error) {
+            if (error.code === '23505') {
+                // Lost the race the pre-check above couldn't fully close —
+                // the database caught what the app-level check missed.
+                return res.status(409).json({ msg: 'You already have an active ride' });
+            }
+            throw error;
         }
 
         res.status(201).json({
             msg: 'Ride requested successfully',
-            ride: result.rows[0],
+            ride,
         });
     } catch (error) {
         console.error('Error requesting ride:', error.message);
