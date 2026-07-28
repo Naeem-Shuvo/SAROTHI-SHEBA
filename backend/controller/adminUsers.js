@@ -12,8 +12,8 @@ const getAdminUsers = async (req, res) => {
     try {
         // fetch all users and left join on every role table to determine their role
         const result = await query(
-            `SELECT u.user_id, u.name, u.email, u.phone_number, u.created_at,
-                    CASE 
+            `SELECT u.user_id, u.name, u.email, u.phone_number, u.created_at, u.is_active,
+                    CASE
                         WHEN a.admin_id IS NOT NULL THEN 'admin'
                         WHEN d.user_id IS NOT NULL THEN 'driver'
                         WHEN p.user_id IS NOT NULL THEN 'passenger'
@@ -35,7 +35,21 @@ const getAdminUsers = async (req, res) => {
     }
 };
 
-// deactivate a user by their ID (soft delete: remove from role tables)
+// Deactivate a user by their ID.
+//
+// Fixed in Phase 2 (P1-12): this used to hard-DELETE the user's role rows
+// across three tables, non-atomically. Every historical ride still
+// references passengers(user_id)/drivers(user_id) by foreign key, so
+// that either orphaned the join (silently breaking ride history) or
+// failed outright with a FK violation the moment the user had any rides.
+// It was also completely irreversible and unaudited — no way to tell
+// "deactivated" apart from "never existed".
+//
+// Real fix: flip users.is_active to FALSE (added in migration
+// 20260728130007). login.js already checks this flag, so a deactivated
+// account can no longer authenticate. Nothing is deleted — every FK
+// stays intact, ride history stays joinable, and reactivation is just
+// flipping the flag back.
 const deactivateUser = async (req, res) => {
     const decoded = req.user;
 
@@ -52,16 +66,22 @@ const deactivateUser = async (req, res) => {
     }
 
     try {
-        // check if the user exists before trying to deactivate
-        const userCheck = await query('SELECT user_id FROM users WHERE user_id = $1', [user_id]);
-        if (userCheck.rows.length === 0) {
-            return res.status(404).json({ msg: 'User not found' });
-        }
+        const result = await query(
+            `UPDATE users SET is_active = FALSE, updated_at = now()
+             WHERE user_id = $1 AND is_active = TRUE
+             RETURNING user_id`,
+            [user_id]
+        );
 
-        // remove the user from all role tables (soft delete approach)
-        await query('DELETE FROM drivers WHERE user_id = $1', [user_id]);
-        await query('DELETE FROM passengers WHERE user_id = $1', [user_id]);
-        await query('DELETE FROM admins WHERE admin_id = $1', [user_id]);
+        if (result.rows.length === 0) {
+            // Either the user doesn't exist, or was already deactivated —
+            // distinguish the two for a clearer response.
+            const exists = await query('SELECT 1 FROM users WHERE user_id = $1', [user_id]);
+            if (exists.rows.length === 0) {
+                return res.status(404).json({ msg: 'User not found' });
+            }
+            return res.status(400).json({ msg: 'User is already deactivated' });
+        }
 
         res.status(200).json({ msg: 'User deactivated successfully' });
     } catch (error) {

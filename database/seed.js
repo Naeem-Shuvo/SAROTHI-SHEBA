@@ -75,9 +75,13 @@ async function seed() {
              ON CONFLICT (admin_id) DO NOTHING`,
             [adminId]
         );
+        // rating_average is a GENERATED column since the Phase 2 ratings
+        // rebuild (derived from rating_count/rating_sum) — it can't be
+        // inserted into directly. The sample rating inserted further down
+        // brings it to a real, computed 5.00.
         await client.query(
-            `INSERT INTO drivers (user_id, license_number, rating_average, status)
-             VALUES ($1, 'DHK-DR-1001', 4.80, 'active')
+            `INSERT INTO drivers (user_id, license_number, status)
+             VALUES ($1, 'DHK-DR-1001', 'active')
              ON CONFLICT (user_id) DO NOTHING`,
             [driverId]
         );
@@ -102,6 +106,16 @@ async function seed() {
         // ride_status — deliberately does NOT run here. Payment is
         // inserted explicitly below, matching how the original
         // commented-out schema.sql sample data handled it.
+        //
+        // Each dependent row below is idempotency-guarded on ITS OWN
+        // existence, not nested inside "the ride didn't exist yet". A
+        // schema migration can legitimately empty a downstream table
+        // (e.g. the Phase 2 ratings rebuild dropped and recreated
+        // `ratings`) while the ride itself survives untouched — nesting
+        // everything under one ride-level check meant re-running seed
+        // after such a migration silently left the rating permanently
+        // missing. Learned the hard way; fixed properly here rather than
+        // by truncating data by hand every time.
         const existingRide = await client.query(
             `SELECT ride_id FROM rides
              WHERE passenger_id = $1 AND pickup_address = 'Shahbag, Dhaka'
@@ -130,27 +144,43 @@ async function seed() {
                 [passengerId, driverId, bikeTypeId]
             );
             rideId = rideResult.rows[0].ride_id;
+        }
 
+        await client.query(
+            `INSERT INTO payments (ride_id, amount, payment_method, transaction_id, payment_status, paid_at)
+             VALUES ($1, 134.40, 'cash', 'TXN-SAMPLE-1001', 'paid', NOW() - INTERVAL '4 minutes')
+             ON CONFLICT (ride_id) DO NOTHING`,
+            [rideId]
+        );
+
+        // Phase 2 ratings rebuild (P1-13 fix) requires rater_id/ratee_id.
+        // ON CONFLICT + rowCount lets the driver aggregate bump happen
+        // exactly once, regardless of how many times seed.js re-runs.
+        const ratingResult = await client.query(
+            `INSERT INTO ratings (ride_id, rater_id, ratee_id, rating_value, comment)
+             VALUES ($1, $2, $3, 5, 'Smooth and safe ride.')
+             ON CONFLICT (ride_id, rater_id) DO NOTHING`,
+            [rideId, passengerId, driverId]
+        );
+        if (ratingResult.rowCount > 0) {
             await client.query(
-                `INSERT INTO payments (ride_id, amount, payment_method, transaction_id, payment_status, paid_at)
-                 VALUES ($1, 134.40, 'cash', 'TXN-SAMPLE-1001', 'paid', NOW() - INTERVAL '4 minutes')`,
-                [rideId]
-            );
-            await client.query(
-                `INSERT INTO ratings (ride_id, rating_value, comment) VALUES ($1, 5, 'Smooth and safe ride.')`,
-                [rideId]
-            );
-            await client.query(
-                `INSERT INTO messages (ride_id, sender_id, message_text)
-                 VALUES ($1, $2, 'I am waiting at the gate.')`,
-                [rideId, passengerId]
-            );
-            await client.query(
-                `INSERT INTO location_logs (ride_id, latitude, longitude, recorded_at)
-                 VALUES ($1, 23.800000, 90.390000, NOW() - INTERVAL '20 minutes')`,
-                [rideId]
+                `UPDATE drivers SET rating_count = rating_count + 1, rating_sum = rating_sum + 5 WHERE user_id = $1`,
+                [driverId]
             );
         }
+
+        await client.query(
+            `INSERT INTO messages (ride_id, sender_id, message_text)
+             SELECT $1, $2, 'I am waiting at the gate.'
+             WHERE NOT EXISTS (SELECT 1 FROM messages WHERE ride_id = $1 AND sender_id = $2)`,
+            [rideId, passengerId]
+        );
+        await client.query(
+            `INSERT INTO location_logs (ride_id, latitude, longitude, recorded_at)
+             SELECT $1, 23.800000, 90.390000, NOW() - INTERVAL '20 minutes'
+             WHERE NOT EXISTS (SELECT 1 FROM location_logs WHERE ride_id = $1)`,
+            [rideId]
+        );
 
         return { adminId, driverId, passengerId, rideId };
     });

@@ -34,8 +34,12 @@ const loginPage = async (req, res) => {
 
     try {
         //logic allows a user to log in creatively using either their username, email address, or phone number.
+        // is_active check added in Phase 2 (P1-12): a deactivated account
+        // must not be able to log in — see adminUsers.js's deactivateUser,
+        // which now soft-deletes via this flag instead of hard-deleting
+        // role rows.
         const userResult = await query(
-            'SELECT user_id, name, email, phone_number, password_hash FROM users WHERE name = $1 OR email = $1 OR phone_number = $1 LIMIT 1',
+            'SELECT user_id, name, email, phone_number, password_hash FROM users WHERE (name = $1 OR email = $1 OR phone_number = $1) AND is_active = TRUE LIMIT 1',
             [username || email || phone_number]
             //LIMIT 1 means it returns only one matched user.
         );
