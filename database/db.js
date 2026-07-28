@@ -1,9 +1,24 @@
 const { Pool } = require('pg');
 
+// Fail fast and loudly on missing config. A silent fallback (the old
+// `|| 'NewPassword123'`) turns a typo'd env var into a confusing connection
+// error 20 minutes later instead of a clear message right now.
+// Phase 1 replaces this with full Zod validation of the whole environment.
+function required(name) {
+    const value = process.env[name];
+    if (value === undefined || value === '') {
+        throw new Error(
+            `Missing required environment variable: ${name}\n` +
+            `  Copy backend/.env.example to backend/.env and fill it in.`
+        );
+    }
+    return value;
+}
+
 const pool = new Pool({
     database: process.env.PG_DATABASE || 'postgres',
     user: process.env.PG_USER || 'postgres',
-    password: process.env.PG_PASSWORD || 'NewPassword123',
+    password: required('PG_PASSWORD'),
     host: process.env.PG_HOST || 'localhost',
     port: Number(process.env.PG_PORT) || 5432
 });

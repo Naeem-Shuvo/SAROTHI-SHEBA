@@ -1,3 +1,66 @@
+# ── Dependencies ──────────────────────────────────────────
 node_modules/
+.pnp
+.pnp.js
+
+# ── Secrets: NEVER commit these ───────────────────────────
+# Note: .gitignore only protects files git is not ALREADY tracking.
+# If a secret is already committed, ignoring it does nothing — it must be
+# purged from history AND rotated. See ULTIMATE_REFINEMENT_PLAN.md §1.3 (P0-3).
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+
+# ── Build output ──────────────────────────────────────────
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# ── Test & coverage ───────────────────────────────────────
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# ── Logs ──────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── OS cruft ──────────────────────────────────────────────
 .DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ── Editors ───────────────────────────────────────────────
+.idea/
+*.swp
+*.swo
+*~
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# ── Local infrastructure state ────────────────────────────
+docker-data/
+pgdata/
+*.local
+
+# ── Tooling caches ────────────────────────────────────────
+.eslintcache
+.cache/
+
+# ── Stray runtime output (untracked in Phase 0) ──────────
+server.err
+server.log

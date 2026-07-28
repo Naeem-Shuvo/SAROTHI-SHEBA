@@ -8,9 +8,14 @@ const { testConnection, closePool } = require('../database/db');
 
 const app = express();
 
-app.use(express.static('../public'));
-app.use(express.json()); //need to be placed before the router
+// cors before the body parser and the router, so preflight OPTIONS requests
+// are answered before anything tries to read a body that isn't there.
 app.use(cors());
+app.use(express.json());
+// No express.static here: this backend is a pure JSON API. The React client is
+// served by Vite. The old `express.static('../public')` pointed at a dead legacy
+// login prototype AND resolved against the process cwd rather than __dirname,
+// so it silently broke depending on where you launched from.
 app.use(router);
 
 const port = process.env.PORT || 3000;

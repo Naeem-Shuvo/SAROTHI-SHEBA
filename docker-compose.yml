@@ -1,0 +1,131 @@
+# ══════════════════════════════════════════════════════════════════════
+# SAROTHI SHEBA — local development stack
+#
+#   Daily work:   docker compose --profile core up -d
+#   Full stack:   docker compose --profile full up -d
+#   Tear down:    docker compose --profile full down
+#   Wipe data:    docker compose --profile full down -v   ⚠️ destroys the DB
+#
+# Services beyond `core` are introduced by the phase noted on each.
+# See ULTIMATE_REFINEMENT_PLAN.md §2.6.
+# ══════════════════════════════════════════════════════════════════════
+
+name: sarothi
+
+services:
+  # ── PostgreSQL + PostGIS ────────────────────────────────────────────
+  # PostGIS image from the start so Phase 2 doesn't need an image swap.
+  # The extension stays uncreated until Phase 2 actually needs it.
+  postgres:
+    image: postgis/postgis:17-3.5
+    container_name: sarothi-postgres
+    profiles: ["core", "full"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PG_USER:-postgres}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?PG_PASSWORD must be set in backend/.env}
+      POSTGRES_DB: ${PG_DATABASE:-postgres}
+      # Deterministic collation so ORDER BY is identical across machines.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "${PG_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-postgres} -d ${PG_DATABASE:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    command:
+      - "postgres"
+      # pg_stat_statements: query-level p99. You cannot rank what you cannot see.
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+      - "-c"
+      - "pg_stat_statements.track=all"
+      # Log anything slower than 200ms so slow queries surface during development.
+      - "-c"
+      - "log_min_duration_statement=200"
+      # Surface deadlocks and lock waits — essential while learning Phase 3.
+      - "-c"
+      - "log_lock_waits=on"
+      - "-c"
+      - "deadlock_timeout=1s"
+
+  # ── Valkey ──────────────────────────────────────────────────────────
+  # BSD-3 licensed, API-identical to Redis 7.x. Chosen over Redis 8 (AGPL).
+  # Used from Phase 4 (H3 driver index) and Phase 5 (jti revocation, rate limits).
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: sarothi-valkey
+    profiles: ["core", "full"]
+    restart: unless-stopped
+    ports:
+      - "${VALKEY_PORT:-6379}:6379"
+    command: ["valkey-server", "--appendonly", "yes", "--save", "900 1"]
+    volumes:
+      - valkeydata:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Redpanda (Phase 6) ──────────────────────────────────────────────
+  # Kafka API, single C++ binary, no JVM and no ZooKeeper.
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: sarothi-redpanda
+    profiles: ["full"]
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=1G
+      - --overprovisioned
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+    ports:
+      - "9092:9092"
+      - "9644:9644"
+    volumes:
+      - redpandadata:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redpanda-console:
+    image: redpandadata/console:latest
+    container_name: sarothi-redpanda-console
+    profiles: ["full"]
+    restart: unless-stopped
+    environment:
+      KAFKA_BROKERS: redpanda:29092
+    ports:
+      - "8080:8080"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  # ── Observability (Phase 7) ─────────────────────────────────────────
+  # Grafana + Tempo + Prometheus + Loki, pre-wired, in ONE container.
+  otel-lgtm:
+    image: grafana/otel-lgtm:latest
+    container_name: sarothi-otel-lgtm
+    profiles: ["full"]
+    restart: unless-stopped
+    ports:
+      - "3000:3000"   # Grafana UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+
+volumes:
+  pgdata:
+  valkeydata:
+  redpandadata:

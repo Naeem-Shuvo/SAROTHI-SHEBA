@@ -4,7 +4,7 @@ function blacklistToken(token, exp) {
     if (!token) {
         return;
     }
-    This line calculates the token's expiration time in **milliseconds**. It's a one-line `if-else` statement (a ternary operator).
+// This line calculates the token's expiration time in **milliseconds**. It's a one-line `if-else` statement (a ternary operator).
 
 // **`typeof exp === 'number'`**: It checks if the [exp](http://_vscodecontentref_/0) value (the token's expiration time) was successfully passed to the function.
 // *   **If [exp](http://_vscodecontentref_/1) is a number**: It calculates [exp * 1000](http://_vscodecontentref_/2). JWT expiration times are in seconds, but JavaScript's `Date.now()` uses milliseconds, so this converts it to the correct unit.
