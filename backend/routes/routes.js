@@ -16,6 +16,7 @@ const { getAdminUsers, deactivateUser } = require('../controller/adminUsers');
 const { getAdminRides } = require('../controller/adminRides');
 const { sendMessage, getMessages } = require('../controller/messages');
 const { initPayment, paymentSuccess, paymentFail, paymentCancel, paymentIPN, getPaymentStatus, cashPayment } = require('../controller/payment');
+const { updateLocation } = require('../controller/driverLocation');
 
 const router = express.Router();
 
@@ -55,6 +56,9 @@ router.put('/rides/:ride_id/status', authMiddleware, updateRideStatus);
 router.get('/rides/available', authMiddleware, getAvailableRides);
 router.post('/rides/:ride_id/rate', authMiddleware, rateRide);
 router.get('/rides/history', authMiddleware, getRideHistory);
+
+// geospatial matching (Phase 4)
+router.put('/driver/location', authMiddleware, updateLocation);
 
 // in-ride messaging routes
 router.post('/rides/:ride_id/messages', authMiddleware, sendMessage);

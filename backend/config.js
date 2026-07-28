@@ -35,6 +35,10 @@ const schema = z.object({
     ADMIN_LEVEL1: z.string().min(1, 'ADMIN_LEVEL1 is required (temporary — removed in Phase 5)'),
     ADMIN_LEVEL2: z.string().min(1, 'ADMIN_LEVEL2 is required (temporary — removed in Phase 5)'),
 
+    // ── Valkey (Phase 4: H3 hot geo index) ─────────────────────────────
+    VALKEY_HOST: z.string().min(1).default('localhost'),
+    VALKEY_PORT: z.coerce.number().int().positive().default(6379),
+
     // ── PostgreSQL ──────────────────────────────────────────────────
     PG_HOST: z.string().min(1).default('localhost'),
     PG_PORT: z.coerce.number().int().positive().default(5432),

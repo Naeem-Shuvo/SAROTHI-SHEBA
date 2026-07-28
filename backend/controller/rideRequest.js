@@ -1,5 +1,6 @@
 const { query, withTransaction } = require('../../database/db');
-const { enqueueEvent } = require('../../database/outbox');
+const { dispatchRide } = require('../dispatch');
+const logger = require('../logger');
 
 const requestRide = async (req, res) => {
     const decoded = req.user;
@@ -58,24 +59,7 @@ const requestRide = async (req, res) => {
                     [decoded.userId, vehicle_type_id, pickup_address, drop_address,
                      pickup_lat, pickup_lng, drop_lat, drop_lng]
                 );
-                const newRide = result.rows[0];
-
-                // Fixes P1-8: this event can now ONLY be seen by clients
-                // after the INSERT above has actually committed — never
-                // before, never if this transaction rolls back. Still a
-                // broadcast to the whole 'drivers' room (nothing here
-                // scopes it by proximity/vehicle type/etc — that's Phase
-                // 4's matching engine); the fix in THIS phase is the
-                // atomicity guarantee, not the targeting.
-                await enqueueEvent(client, {
-                    aggregateType: 'ride',
-                    aggregateId: String(newRide.ride_id),
-                    eventType: 'new_ride_request',
-                    rooms: ['drivers'],
-                    data: newRide
-                });
-
-                return newRide;
+                return result.rows[0];
             }, { actorId: decoded.userId });
         } catch (error) {
             if (error.code === '23505') {
@@ -85,6 +69,23 @@ const requestRide = async (req, res) => {
             }
             throw error;
         }
+
+        // Phase 4: replaces the old global.io.emit('new_ride_request') —
+        // a broadcast to literally every connected socket, matching
+        // section §1.6's core finding that this app had no matching
+        // engine at all. Runs AFTER the ride's own transaction commits
+        // (dispatch does its own matching queries + a separate
+        // withTransaction for the offer) — a best-effort follow-up, not
+        // part of the ride's atomicity. If dispatch finds no candidate
+        // right now, the ride stays 'requested' and the sweeper
+        // (dispatch.js) or a manual pull via GET /rides/available can
+        // still surface it later.
+        dispatchRide(
+            ride.ride_id,
+            Number(ride.pickup_latitude),
+            Number(ride.pickup_longitude),
+            ride.vehicle_type_id
+        ).catch((err) => logger.error({ err, rideId: ride.ride_id }, 'Dispatch failed after ride creation'));
 
         res.status(201).json({
             msg: 'Ride requested successfully',

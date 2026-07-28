@@ -53,6 +53,21 @@ const acceptRide = async (req, res) => {
 
                 const acceptedRide = result.rows[0];
 
+                // Resolve any live dispatch offer for this ride (Phase 4).
+                // ride_offers_one_live_per_ride guarantees at most one
+                // exists — and since the optimistic-lock UPDATE above just
+                // succeeded, no other driver could have been mid-accepting
+                // concurrently, so any live offer here can only belong to
+                // this same driver. Best-effort record-keeping, not a
+                // correctness dependency — a driver can still accept via
+                // GET /rides/available with no live offer at all (e.g.
+                // dispatch found no candidates), so this is a no-op then.
+                await client.query(
+                    `UPDATE ride_offers SET outcome = 'accepted', responded_at = now()
+                     WHERE ride_id = $1 AND outcome IS NULL`,
+                    [ride_id]
+                );
+
                 // Fixes P1-8: this used to fire via global.io.emit
                 // immediately after query() returned, outside any
                 // transaction the caller controlled. Now it can only be

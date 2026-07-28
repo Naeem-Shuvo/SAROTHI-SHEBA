@@ -8,6 +8,7 @@ const logger = require('./logger');
 const router = require('./routes/routes');
 const { testConnection, closePool } = require('../database/db');
 const { startOutboxRelay, stopOutboxRelay } = require('./outboxRelay');
+const { startDispatchSweeper, stopDispatchSweeper } = require('./dispatch');
 
 const app = express();
 
@@ -83,6 +84,7 @@ async function startServer() {
         });
 
         startOutboxRelay(io);
+        startDispatchSweeper();
     } catch (error) {
         logger.error({ err: error }, 'Failed to start server');
         process.exit(1);
@@ -109,6 +111,7 @@ async function shutdown(signal) {
     forceExitTimer.unref();
 
     stopOutboxRelay();
+    stopDispatchSweeper();
 
     try {
         await new Promise((resolve, reject) => {
