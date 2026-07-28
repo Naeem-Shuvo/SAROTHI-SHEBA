@@ -3,7 +3,7 @@
 > Short session companion. The full reasoning lives in [`ULTIMATE_REFINEMENT_PLAN.md`](./ULTIMATE_REFINEMENT_PLAN.md).
 > Live status lives in [`progress.md`](./progress.md).
 
-**Current phase:** Phase 0 — 95% done, functionally complete
+**Current phase:** Phase 1 — 95% done, all exit criteria proven
 **Last updated:** 2026-07-28
 
 ---
@@ -12,20 +12,21 @@
 
 Take a ~6,000 LOC Uber-clone term project that **could not boot**, and rebuild it into a production-grade distributed system across 10 phases — pausing before each phase so the concepts are understood before the code is generated.
 
-**It boots now, and every leaked secret with real value has been rotated.** `/db-health` → 200, full auth chain verified end to end, secret rotation proven live (see changelog in `progress.md`).
+**It boots now, every leaked secret with real value has been rotated, and the database is now under real migration control with a tested transaction primitive ready for Phase 3.** See `progress.md` for the full proof log of every exit criterion in Phases 0 and 1 — nothing below was asserted without a real, falsifiable test.
 
 ---
 
-## Two decisions the user made this session
+## Decisions made this session
 
-1. **Skip the git history purge.** Correct call — rotation, not history rewriting, is what neutralizes a leaked-secret risk. Once `JWT_SECRET`/`ADMIN_LEVEL*`/`PG_PASSWORD` are changed, the old values sitting in commit `6749d1d` are inert. Purging is disruptive (SHA rewrite, force-push, breaks any existing clone of `Nemo`/`blackhatcrow`) for little remaining benefit. Deferred indefinitely, revisitable later.
-2. **No SSLCommerz sandbox account.** Deferred to Phase 3/4 — register fresh then (sandbox registration accepts a `localhost` domain, five minutes). Sandbox is test money; the old leaked credential is low-risk either way.
+1. **Skip the git history purge** (Phase 0). Rotation, not history rewriting, is what neutralizes a leaked-secret risk. Deferred indefinitely, revisitable later.
+2. **No SSLCommerz sandbox account** (Phase 0). Deferred to Phase 3/4 — register fresh then.
+3. *(Phase 0, committed as `5f91bb9`, nothing pushed.)*
 
 ## Next 3 actions
 
-1. **Checkpoint 0** — "Git never forgets, and secrets are not text." The live rotation proof (old token: 403 → 401 after rotation) already demonstrated the mechanism; this is the conceptual close-out before Phase 1.
-2. **Commit Phase 0's changes** — nothing has been committed yet. Everything is staged/modified in the working tree pending your review.
-3. **Start Phase 1** — `node-pg-migrate`, `withTransaction()` rewrite of `db.js`, Zod config validation, pino logging.
+1. **Checkpoint 1** — "Reproducibility: migrations, config, and the transaction boundary." Covers migrations vs. hand-edited schema files, why `withTransaction` exists and what `query()` still can't do, and the isolation-level/retry material the concurrency proofs above already demonstrated live.
+2. **Commit Phase 1's changes** — `backend/config.js`, `database/db.js` rewrite, migrations, `seed.js`, pino logging, graceful shutdown. Nothing committed yet; working tree has the full diff pending review.
+3. **Start Phase 2** — schema v2: enums, partial unique indexes (the real fix for P1-7), PostGIS columns, money as integer minor units, the append-only `ride_events` audit log.
 
 ---
 
@@ -34,7 +35,7 @@ Take a ~6,000 LOC Uber-clone term project that **could not boot**, and rebuild i
 | # | Phase | Status | Key outcome |
 |---|---|---|---|
 | 0 | Triage & secrets | 🟨 95% | ✅ Backend starts. ✅ Live secrets rotated & proven dead. History purge descoped by design. |
-| 1 | Foundation: Docker, migrations, config | 🟨 10% | `docker-compose.yml` done early; migrations + `withTransaction` next |
+| 1 | Foundation: Docker, migrations, config | 🟨 95% | ✅ Migrations (up/down/up proven), `withTransaction` (rollback + real 40001 + 10-way retry proven), Zod config, pino logging, graceful shutdown (proven) |
 | 2 | Schema v2: constraints, PostGIS | ⬜ | Invalid data becomes impossible |
 | 3 | ★ Concurrency, isolation, outbox | ⬜ | Provably correct under load |
 | 4 | ★ Geospatial matching engine | ⬜ | Real dispatch, p99 < 100 ms |
@@ -94,6 +95,9 @@ Take a ~6,000 LOC Uber-clone term project that **could not boot**, and rebuild i
 | API port | 4000 |
 | Start the stack | `docker compose --env-file backend/.env --profile core up -d` |
 | Start the API | `cd backend && npm run dev` |
+| Run migrations | `npm run migrate:up` / `npm run migrate:down` (repo root) |
+| Seed dev data | `npm run seed` (repo root) — prints login credentials, safe to re-run |
+| Dev login | `sarothi.{admin,driver,passenger}@gmail.com` / `DevPass123!` (after seeding) |
 
 ⚠️ `anjum` is a **superuser with BYPASSRLS**. Phase 5 needs a separate non-superuser `app_user`, or RLS policies will be silently ignored.
 

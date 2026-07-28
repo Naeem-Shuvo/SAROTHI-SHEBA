@@ -1,5 +1,16 @@
 {
+  "name": "sarothi-sheba",
+  "private": true,
+  "scripts": {
+    "migrate:up": "node database/migrate.js up",
+    "migrate:down": "node database/migrate.js down",
+    "migrate:create": "node database/migrate.js create",
+    "seed": "node database/seed.js"
+  },
   "dependencies": {
     "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "node-pg-migrate": "^9.0.0"
   }
 }

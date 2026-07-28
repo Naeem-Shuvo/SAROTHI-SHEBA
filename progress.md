@@ -7,7 +7,7 @@
 
 ```
 Phase  0 ▰▰▰▰▰▰▰▰▰▱ 95%   Triage & secrets — all code + rotation done; checkpoint remains
-Phase  1 ▰▱▱▱▱▱▱▱▱▱ 10%   Foundation — compose file pulled forward
+Phase  1 ▰▰▰▰▰▰▰▰▰▱ 95%   Foundation — all exit criteria proven; checkpoint remains
 Phase  2 ▱▱▱▱▱▱▱▱▱▱  0%   Schema v2
 Phase  3 ▱▱▱▱▱▱▱▱▱▱  0%   Concurrency ★
 Phase  4 ▱▱▱▱▱▱▱▱▱▱  0%   Geospatial ★
@@ -76,15 +76,23 @@ separate non-superuser `app_user` role, or RLS policies will be silently ignored
 
 ---
 
-## Phase 1 — Foundation ⬜
+## Phase 1 — Foundation 🟨 (95% — all exit criteria proven, checkpoint remains)
 
 **Exit criteria**
-- [ ] `docker compose --profile core up` → healthy Postgres + Valkey
-- [ ] `migrate:up` from empty; `migrate:down` reverses cleanly
-- [ ] `npm run seed` produces a usable dataset
-- [ ] Missing env var → startup refused with a clear message
-- [ ] `withTransaction` rolls back all writes when the callback throws
-- [ ] `SIGTERM` drains in-flight requests
+- [x] `docker compose --profile core up` → healthy Postgres + Valkey ✅ (running continuously since Phase 0, 55+ min uptime, both healthy)
+- [x] `migrate:up` from empty; `migrate:down` reverses cleanly ✅ **proven**: dropped all app tables to bare `spatial_ref_sys`, ran `migrate:down` × 3 (unwinds one migration per call) back to empty, then `migrate:up` rebuilt all 12 tables + `calculate_fare()` + `after_ride_completed` trigger + the previously-orphaned `precheck_info_trigger`, all verified present afterward
+- [x] `npm run seed` produces a usable dataset ✅ **proven idempotent**: ran twice, exact row counts unchanged (3 users, 2 vehicle types, 1 vehicle, 1 ride, 1 payment, 1 rating, 1 message, 1 location log) — same `ride_id` both times
+- [x] Missing env var → startup refused with a clear message ✅ **proven**: broke `PG_PASSWORD` (emptied) and `JWT_SECRET` (too short) simultaneously — got both errors listed together in one aggregated message with exit code 1, not discovered one at a time
+- [x] `withTransaction` rolls back all writes when the callback throws ✅ **proven** two ways: (1) a callback that writes twice then throws leaves 0 rows; (2) a real SERIALIZABLE conflict manually forced between two raw clients produced exactly SQLSTATE `40001`; (3) 10 genuinely concurrent transactions read-modify-write the same row under `SERIALIZABLE` with 5-20ms random overlap — all 10 succeeded via automatic retry, final value exactly 10, zero lost updates
+- [x] `SIGTERM` drains in-flight requests ✅ **proven deterministically**: a synthetic 500ms-delayed route was hit, `SIGTERM` emitted 100ms in (request genuinely mid-flight, not just TCP handshake), response arrived at 516ms, `"Shutdown complete"` logged and `process.exit(0)` only fired after. (Note: real OS `SIGTERM` via PowerShell's `Stop-Process` does a hard `TerminateProcess` on Windows and bypasses Node's signal handler entirely — this is a genuine Windows limitation, not a gap in the app. Tested via `process.emit('SIGTERM')`, the standard cross-platform way to test Node shutdown logic, which exercises the identical registered handler.)
+
+### Unplanned finds during Phase 1
+
+**The orphaned `precheck_info` trigger, finally applied and tested.** `database/func precheck_info.sql` (P2-11) contained a real, well-written validation trigger (Gmail-only emails, BD phone format, letters-only names) that had **never once been applied to any database** — confirmed via `\df precheck_info` returning 0 rows before this phase. It's exactly the "database as last line of defense" principle the refinement plan argues for, just predating the plan and sitting unused. Folded into migration `20260728120003`, and functionally tested for the first time ever: correctly rejects a non-Gmail email and a malformed phone number, accepts valid data. The old loose `.sql` files (`schema.sql`, `functions.sql`, the space-named precheck file) are now redundant with the migrations and were removed — content fully preserved in migration files and git history.
+
+**`node-pg-migrate` + `npx` doesn't work reliably on Windows.** `spawnSync('npx.cmd', ...)` without `shell:true` fails silently (empty output, exit 1) — a known Windows footgun with spawning `.cmd` wrapper scripts. Fixed by resolving `node-pg-migrate`'s actual entry script via `require.resolve()` and invoking `node` on it directly, skipping the shell entirely. Also hit a doubled-`.js` bug from the package's `exports` map already appending the extension to its `./bin/*` wildcard.
+
+**`dotenv.config()` resolves relative to CWD, not `__dirname`** — same class of bug as the `express.static` fix in Phase 0. Bit `backend/config.js` the same way; fixed the same way (explicit `path.join(__dirname, '.env')`).
 
 **Checkpoint 1 — "Reproducibility: migrations, config, transaction boundary"** ⬜
 - [ ] Taught · [ ] Hands-on done · [ ] Self-check passed
@@ -274,9 +282,9 @@ Filled in as we measure. Empty cells are honest — we haven't run them yet.
 |---|---|---|---|
 | P0 | 7 | 6 | 1 *(SSLCommerz sandbox creds — no live risk, deferred to Phase 3/4)* |
 | P1 (security) | 6 | 0 | 6 |
-| P1 (correctness) | 9 | 0 | 9 |
-| P2 | 28 | 4 | 24 *(P2-11 n/a, P2-14 partial, P2-15, P2-16 done)* |
-| **Total** | **50** | **10** | **40** |
+| P1 (correctness) | 9 | 1 | 8 *(withTransaction now exists and is proven correct; wiring it into the 16 controllers that still use bare `query()` is Phase 3's job — P1-6 is "primitive built", not "fully resolved")* |
+| P2 | 28 | 7 | 21 *(+P2-8 migrations, P2-11 precheck trigger recovered & applied, P2-17 graceful shutdown)* |
+| **Total** | **50** | **14** | **36** |
 
 P0 total rose from 5 to 7: P0-6 (uninstalled deps) and P0-7 (empty `PG_PASSWORD`, no database)
 were only discoverable by running the code. P0-3 (`.env` in git history) is resolved via **rotation**,
@@ -319,3 +327,34 @@ credentials carry no real risk (test money only) and are deferred, not urgent.
 - **User decision: no SSLCommerz sandbox account access.** Deferred fresh registration to Phase 3/4
   when payment work actually begins — old leaked sandbox creds are inert (test money only).
 - **Phase 0 is functionally complete.** Only the teaching checkpoint remains before Phase 1.
+- Committed as `5f91bb9` — 1,162 files changed. Nothing pushed; local `main` only.
+
+**Phase 1 executed (same day, user said "lets go"):**
+- Added `backend/config.js` — single Zod-validated source of truth for the whole environment,
+  replacing scattered `process.env.X` reads and the Phase-0-era ad hoc `required()` check in `db.js`.
+  Proved aggregated error reporting: two simultaneously broken vars produced one combined error
+  listing both, not a serial one-crash-at-a-time discovery.
+- Rewrote `database/db.js`: pool now built from `config`, added `withTransaction()` (retry on
+  `40001`/`40P01` with full jitter, isolation-level support, `actorId` hook for Phase 5's RLS).
+  Proved rollback-on-throw, proved a genuine `40001` under manually forced contention, proved the
+  retry loop recovers 10/10 real concurrent conflicts with zero lost updates.
+- Set up `node-pg-migrate`: 3 migrations porting `schema.sql` + `functions.sql` + the never-applied
+  `precheck_info` trigger verbatim (no redesign — that's Phase 2). Proved full down→empty→up
+  round-trip against the real database, not just a dry run.
+- **Recovered and applied `precheck_info_trigger` for the first time in this project's history** —
+  it existed as an orphaned, never-sourced file. Functionally tested: correctly rejects a non-Gmail
+  email and a malformed BD phone number, accepts valid data.
+- Deleted `schema.sql`, `functions.sql`, `func precheck_info.sql` — fully superseded by migrations,
+  content preserved in migration files and git history.
+- Wrote `database/seed.js` — idempotent (proven: ran twice, zero duplication), replaces the 170
+  commented-out lines that used to sit dead in `schema.sql`. Proved seeded credentials work through
+  a real login → ride-history round trip against the running API.
+- Added `pino`/`pino-http` structured logging with per-request correlation IDs; fixed `shutdown()`
+  to actually drain (`server.close()` → `io.close()` → `closePool()` → exit), with a 10s force-exit
+  safety timeout. Proved the drain works with a deterministic synthetic-slow-route test.
+- **Found and fixed two new bugs while building this**: `dotenv.config()` resolving against CWD
+  instead of `__dirname` (same bug class as Phase 0's `express.static` fix), and `node-pg-migrate`
+  failing silently via `npx.cmd` on Windows (fixed by invoking its entry script with `node` directly).
+- **All 6 Phase 1 exit criteria proven with real, falsifiable tests** — see the Phase 1 section above.
+- **Status: no controllers touched yet.** `query()` still works exactly as before; `withTransaction`
+  is a tested, standalone primitive. Migrating the 16 controllers onto it is Phase 3's explicit job.
