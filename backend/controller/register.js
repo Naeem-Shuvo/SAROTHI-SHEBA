@@ -1,8 +1,6 @@
-const jwt=require('jsonwebtoken');
-//env theke secret key nite import kora
-require('dotenv').config();
 const { query, withTransaction } = require('../../database/db');
-const crypto=require('crypto');
+const { hashPassword } = require('../password');
+const { signToken } = require('../jwt');
 
 const registerPage=async (req,res)=>{
     const {username,email,phone_number,password}=req.body;
@@ -10,7 +8,7 @@ const registerPage=async (req,res)=>{
         return res.status(400).json({msg:'All fields are required'});
     }
 
-    
+
     const validateInputs = (email, phone, name) => {
         const emailPattern = /^[A-Za-z0-9._%+-]+@gmail\.com$/i;
         const phonePattern = /^(\+88)?01[3-9][0-9]{8}$/;
@@ -48,7 +46,9 @@ const registerPage=async (req,res)=>{
             return res.status(400).json({msg:'User already exists with this email or phone number'});
         }
 
-        const hashedPass=crypto.createHash('sha256').update(password).digest('hex');
+        // Fixes P1-1: Argon2id (memory-hard KDF, per-hash random salt)
+        // instead of unsalted single-round SHA-256.
+        const hashedPass = await hashPassword(password);
         const insertResult=await query(
             'INSERT INTO users (name,email,phone_number,password_hash) VALUES ($1,$2,$3,$4) RETURNING user_id, name',
             //returns rows = [{ user_id: 123 }]
@@ -57,9 +57,8 @@ const registerPage=async (req,res)=>{
         )
         //object
         const userInfo={user_id: insertResult.rows[0].user_id, name: insertResult.rows[0].name};
-        const token= jwt.sign(
-            {userId: userInfo.user_id, username: userInfo.name}, //passing object to jwt.sign
-            process.env.JWT_SECRET,
+        const token = signToken(
+            {userId: userInfo.user_id, username: userInfo.name},
             {expiresIn: '1h'}
         )
         res.status(201).json({
@@ -75,43 +74,43 @@ const registerPage=async (req,res)=>{
     }
 }
 
-const registerAsAdmin=async(req,res)=>{
-    const decoded=req.user;
-    if(!decoded){
-        return res.status(401).json({msg:'Unauthorized: invalid or missing user context'});
+// Fixes P0-3 / the ADMIN_LEVEL* shared-secret privilege escalation: any
+// user who knew (or leaked, or read from git history — see
+// ULTIMATE_REFINEMENT_PLAN.md §1.3) the ADMIN_LEVEL1/ADMIN_LEVEL2 string
+// could self-promote to admin. There is no secret left to leak — this
+// now requires an EXISTING admin's own authenticated session, the same
+// admin-promotes-user pattern adminApproveDriver already uses. The very
+// first admin is created by database/seed.js at bootstrap time (a direct
+// DB insert, not through this endpoint) — real systems solve the
+// bootstrap problem the same way: a seed/migration-time action, not a
+// runtime shared secret.
+const registerAsAdmin = async (req, res) => {
+    const adminDecoded = req.user;
+    if (!adminDecoded || adminDecoded.role !== 'admin') {
+        return res.status(403).json({ msg: 'Unauthorized: only an existing admin can promote a user to admin' });
     }
 
-    const userId=decoded.userId;
-    const userName=decoded.username;
-    const {admin_secret}=req.body;
-
-    if(!admin_secret){
-        return res.status(400).json({msg:'admin_secret is required'});
+    const { user_id, admin_level } = req.body;
+    if (!user_id || !admin_level || ![1, 2].includes(Number(admin_level))) {
+        return res.status(400).json({ msg: 'user_id and admin_level (1 or 2) are required' });
     }
 
-    let lvl;
-    if(admin_secret===process.env.ADMIN_LEVEL1){
-        lvl=1;
-    } else if(admin_secret===process.env.ADMIN_LEVEL2){
-        lvl=2;
-    } else {
-        return res.status(403).json({msg:'Invalid admin secret'});
+    // An admin can only grant a level up to their own — a level-1 admin
+    // can't mint a level-2 admin above themselves.
+    if (!adminDecoded.lvl || adminDecoded.lvl < Number(admin_level)) {
+        return res.status(403).json({ msg: 'Cannot grant an admin level higher than your own' });
     }
-   await query(
-            'INSERT INTO Admins (admin_id, admin_level) VALUES ($1, $2) ON CONFLICT (admin_id) DO UPDATE SET admin_level = EXCLUDED.admin_level',
-            // /If a row with the same admin_id already exists (conflict on primary key/unique key), do not fail.
-            [userId, lvl]
-        );
-    
-        // Issue a fresh token that carries admin claims.   
-        const newToken=jwt.sign({userId, username: userName, lvl, role:'admin'},process.env.JWT_SECRET,{expiresIn:'1d'});
-        res.status(200).json({
-            msg:'User promoted to admin successfully',
-            token:newToken,
-            user:{userId, username: userName, adminLevel: lvl}
-        });
 
-    }
+    await query(
+        'INSERT INTO Admins (admin_id, admin_level) VALUES ($1, $2) ON CONFLICT (admin_id) DO UPDATE SET admin_level = EXCLUDED.admin_level',
+        [user_id, admin_level]
+    );
+
+    return res.status(200).json({
+        msg: 'User promoted to admin successfully',
+        user: { userId: user_id, adminLevel: Number(admin_level) }
+    });
+}
 
     const registerAsDriver=async(req,res)=>{
         const decoded=req.user;
@@ -209,20 +208,12 @@ const registerAsAdmin=async(req,res)=>{
             return res.status(401).json({msg:'Unauthorized: invalid or missing user context from regPassenger'});
         }
         const userId=decoded.userId;
-        
-        //check whether pre exist
-        // const dummy=await query(
-        //     'SELECT * FROM Passengers WHERE user_id=$1',
-        //     [userId]
-        // )
-        // if(dummy.rows.length>0){
-        //     return res.status(400).json({msg:'User is already registered as passenger'});
-        // }
+
         await query(
             'insert into Passengers (user_id,rating_average,total_distance) values ($1, 0, 0) on conflict (user_id) do nothing',
             [userId]
         )
-        const newToken=jwt.sign({userId,username:decoded.username, role:'passenger'},process.env.JWT_SECRET,{expiresIn:'1d'});
+        const newToken = signToken({userId, username: decoded.username, role: 'passenger'}, {expiresIn: '1d'});
         res.status(200).json({
             msg:'User registered as passenger successfully',
             token:newToken,

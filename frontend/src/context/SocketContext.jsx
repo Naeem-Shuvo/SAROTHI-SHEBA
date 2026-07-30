@@ -10,21 +10,22 @@ export const useSocket = () => useContext(SocketContext);
 
 export function SocketProvider({ children }) {
     const [socket, setSocket] = useState(null);
-    const { user } = useAuth();
+    const { user, token } = useAuth();
 
     useEffect(() => {
         // user logged in thaklei shudhu connect hobe
-        if (user) {
-            const newSocket = io('http://localhost:4000');
+        if (user && token) {
+            // Backend now requires a verified JWT in the handshake (Phase 5,
+            // fixes P1-2 — previously any client could join any room just by
+            // emitting join_room with someone else's id). Rooms are derived
+            // server-side from this token; there's no join_room/join_drivers
+            // handler to emit to anymore, so those calls are gone too.
+            const newSocket = io('http://localhost:4000', {
+                auth: { token }
+            });
 
-            // connected hole user er personal room e join korbe
             newSocket.on('connect', () => {
-                newSocket.emit('join_room', user.userId || user.id);
-
-                // user driver hole ride request er jonno drivers room e join korbe
-                if (user.role === 'driver') {
-                    newSocket.emit('join_drivers');
-                }
+                // Room membership already happened server-side on connect.
             });
 
             // passenger der jonno global listener jekhon ride complete hobe

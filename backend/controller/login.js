@@ -1,30 +1,7 @@
-const jwt=require('jsonwebtoken');
-//env theke secret key nite import kora
-require('dotenv').config();
 const { query } = require('../../database/db');
-const crypto=require('crypto');
-const { blacklistToken } = require('../middleware/tokenBlacklist');
-
-// const requireAdmin = (decoded, minLevel = 1)=>{
-//     if(decoded.role!='admin' || !decoded.lvl || decoded.lvl < minLevel){
-//         return false;
-//     }
-//     return true;
-// }
-
-// const requireDriver=(decoded)=>{
-//     if(decoded.role==='driver'){
-//         return true;
-//     }
-//     return false;
-// }
-
-// const requirePassenger=(decoded)=>{
-//     if(decoded.role==='passenger'){
-//         return true;
-//     }
-//     return false;
-// }
+const { verifyPassword, hashPassword } = require('../password');
+const { signToken } = require('../jwt');
+const { revokeToken } = require('../tokenRevocation');
 
 const loginPage = async (req, res) => {
     const { username, password, email, phone_number } = req.body;
@@ -50,9 +27,17 @@ const loginPage = async (req, res) => {
 
         const user = userResult.rows[0];
 
-        const hashedPass=crypto.createHash('sha256').update(password).digest('hex');
-        if (user.password_hash !== hashedPass) {
+        // Fixes P1-1 (unsalted SHA-256 -> Argon2id). needsRehash is true
+        // exactly when this user still has a legacy hash and just proved
+        // they know the plaintext — the only safe moment to upgrade it,
+        // with no forced reset and no user-visible disruption.
+        const { valid, needsRehash } = await verifyPassword(password, user.password_hash);
+        if (!valid) {
             return res.status(401).json({ message: 'wrong password' });
+        }
+        if (needsRehash) {
+            const newHash = await hashPassword(password);
+            await query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [newHash, user.user_id]);
         }
 
         let role = 'user';
@@ -96,11 +81,7 @@ const loginPage = async (req, res) => {
             tokenPayload.lvl = lvl;
         }
 
-        const token = jwt.sign(
-            tokenPayload,
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
+        const token = signToken(tokenPayload, { expiresIn: '1h' });
 
         res.status(200).json({
             message: 'Login successful',
@@ -132,12 +113,15 @@ const dbHealth = async (req, res) => {
 
 const logoutPage = async (req, res) => {
     try {
-        //req.user age ensure kore then expiration check korte jabe  
-        blacklistToken(req.token, req.user && req.user.exp);
+        // Fixes P1-14: revocation now lives in Valkey (shared, durable),
+        // not an in-process Map that forgets everything on restart and is
+        // invisible to any other running process. Keyed by jti, not the
+        // full token string.
+        await revokeToken(req.user && req.user.jti, req.user && req.user.exp);
         return res.status(200).json({ message: 'Logout successful. Token invalidated.' });
     } catch (error) {
         return res.status(500).json({ message: 'Internal server error' });
     }
 };
 
-module.exports = { loginPage,dbHealth,logoutPage };
+module.exports = { loginPage, dbHealth, logoutPage };

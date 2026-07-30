@@ -30,10 +30,6 @@ const schema = z.object({
         'JWT_SECRET must be at least 32 characters. Generate one with:\n' +
         '     node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'base64url\'))"'),
 
-    // ⚠️ Deprecated shared-secret admin bootstrap — removed in Phase 5.
-    // Required for now because register.js still reads them.
-    ADMIN_LEVEL1: z.string().min(1, 'ADMIN_LEVEL1 is required (temporary — removed in Phase 5)'),
-    ADMIN_LEVEL2: z.string().min(1, 'ADMIN_LEVEL2 is required (temporary — removed in Phase 5)'),
 
     // ── Valkey (Phase 4: H3 hot geo index) ─────────────────────────────
     VALKEY_HOST: z.string().min(1).default('localhost'),

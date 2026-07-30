@@ -1,0 +1,277 @@
+{
+  ".vscode/settings.json": {
+    "mtime": 1785211875.4863722,
+    "ast_hash": "aec9922b3d92ba27a7631cf34c0baf57",
+    "semantic_hash": "aec9922b3d92ba27a7631cf34c0baf57"
+  },
+  "backend/controller/adminDashboard.js": {
+    "mtime": 1785211875.4881198,
+    "ast_hash": "253d6f4e529153b1b7a91bdd7b677d71",
+    "semantic_hash": "253d6f4e529153b1b7a91bdd7b677d71"
+  },
+  "backend/controller/adminRides.js": {
+    "mtime": 1785211875.4881198,
+    "ast_hash": "949215fff0e3c8881ba05ee55759b6ff",
+    "semantic_hash": "949215fff0e3c8881ba05ee55759b6ff"
+  },
+  "backend/controller/adminUsers.js": {
+    "mtime": 1785211875.4881198,
+    "ast_hash": "fdc0b7bc61f7350aeb380b6057b53e27",
+    "semantic_hash": "fdc0b7bc61f7350aeb380b6057b53e27"
+  },
+  "backend/controller/availableRides.js": {
+    "mtime": 1785211875.4881198,
+    "ast_hash": "c10cdc460b714b742d19d05cac599ae3",
+    "semantic_hash": "c10cdc460b714b742d19d05cac599ae3"
+  },
+  "backend/controller/dashboard.js": {
+    "mtime": 1785211875.4881198,
+    "ast_hash": "dbde83e5b58f4267446bdf479b0b8858",
+    "semantic_hash": "dbde83e5b58f4267446bdf479b0b8858"
+  },
+  "backend/controller/driverDashboard.js": {
+    "mtime": 1785211875.4881198,
+    "ast_hash": "2b3f9ec287d4a1405262fb081fb65605",
+    "semantic_hash": "2b3f9ec287d4a1405262fb081fb65605"
+  },
+  "backend/controller/login.js": {
+    "mtime": 1785211875.4881198,
+    "ast_hash": "adf32a0312d33bfe3a646d136276fe8e",
+    "semantic_hash": "adf32a0312d33bfe3a646d136276fe8e"
+  },
+  "backend/controller/messages.js": {
+    "mtime": 1785211875.4881198,
+    "ast_hash": "74a035e012f90937b5a91fc03e4a49f8",
+    "semantic_hash": "74a035e012f90937b5a91fc03e4a49f8"
+  },
+  "backend/controller/passengerDashboard.js": {
+    "mtime": 1785211875.4881198,
+    "ast_hash": "70b435c4dd9721922e046993a258bb93",
+    "semantic_hash": "70b435c4dd9721922e046993a258bb93"
+  },
+  "backend/controller/payment.js": {
+    "mtime": 1785211875.4881198,
+    "ast_hash": "627099b33a71d7cd42b2ac16f5744b2b",
+    "semantic_hash": "627099b33a71d7cd42b2ac16f5744b2b"
+  },
+  "backend/controller/rateRide.js": {
+    "mtime": 1785211875.5038443,
+    "ast_hash": "c4b1ad287a267a93a1c057d08d33b297",
+    "semantic_hash": "c4b1ad287a267a93a1c057d08d33b297"
+  },
+  "backend/controller/register.js": {
+    "mtime": 1785211875.5038443,
+    "ast_hash": "5f2e75e27683610b2f946b11dd043d81",
+    "semantic_hash": "5f2e75e27683610b2f946b11dd043d81"
+  },
+  "backend/controller/rideAccept.js": {
+    "mtime": 1785211875.5038443,
+    "ast_hash": "0437193f21cc7f8958ce5c990c69b476",
+    "semantic_hash": "0437193f21cc7f8958ce5c990c69b476"
+  },
+  "backend/controller/rideHistory.js": {
+    "mtime": 1785211875.5038443,
+    "ast_hash": "10698edccf79f5af00b9312ef4a399b5",
+    "semantic_hash": "10698edccf79f5af00b9312ef4a399b5"
+  },
+  "backend/controller/rideRequest.js": {
+    "mtime": 1785211875.5038443,
+    "ast_hash": "91cf6c0ff11b2468cfdd20ea80481014",
+    "semantic_hash": "91cf6c0ff11b2468cfdd20ea80481014"
+  },
+  "backend/controller/rideStatus.js": {
+    "mtime": 1785211875.5038443,
+    "ast_hash": "f67600ddef2c61e0a1b4ed9a52a6d943",
+    "semantic_hash": "f67600ddef2c61e0a1b4ed9a52a6d943"
+  },
+  "backend/middleware/authMiddleware.js": {
+    "mtime": 1785211875.5038443,
+    "ast_hash": "49ead29901e78d1b6bfff43b38496fc6",
+    "semantic_hash": "49ead29901e78d1b6bfff43b38496fc6"
+  },
+  "backend/middleware/tokenBlacklist.js": {
+    "mtime": 1785211875.5038443,
+    "ast_hash": "31e5fa3aa1cbc1fab5432f7305266917",
+    "semantic_hash": "31e5fa3aa1cbc1fab5432f7305266917"
+  },
+  "backend/package.json": {
+    "mtime": 1785211876.1849115,
+    "ast_hash": "746d4f074547babac5b1212f700a8272",
+    "semantic_hash": "746d4f074547babac5b1212f700a8272"
+  },
+  "backend/routes/routes.js": {
+    "mtime": 1785211876.1849115,
+    "ast_hash": "e7ba8f5cfdb6db20ac8f81759bab66e2",
+    "semantic_hash": "e7ba8f5cfdb6db20ac8f81759bab66e2"
+  },
+  "backend/startPoint.js": {
+    "mtime": 1785211876.1866643,
+    "ast_hash": "725e35e5a78df6c8af44e9a41616d228",
+    "semantic_hash": "725e35e5a78df6c8af44e9a41616d228"
+  },
+  "database/db.js": {
+    "mtime": 1785211876.188673,
+    "ast_hash": "7a4d8d0132781513203592437b1009fe",
+    "semantic_hash": "7a4d8d0132781513203592437b1009fe"
+  },
+  "database/func precheck_info.sql": {
+    "mtime": 1785211876.188673,
+    "ast_hash": "964842041db1650249d3d3b24735cfa5",
+    "semantic_hash": "964842041db1650249d3d3b24735cfa5"
+  },
+  "database/functions.sql": {
+    "mtime": 1785211876.188673,
+    "ast_hash": "7c0b1e2f682d0eac4fa9411e0ef4f30e",
+    "semantic_hash": "7c0b1e2f682d0eac4fa9411e0ef4f30e"
+  },
+  "database/schema.sql": {
+    "mtime": 1785211876.188673,
+    "ast_hash": "ad532ce84d7642587ab15a07ae970b79",
+    "semantic_hash": "ad532ce84d7642587ab15a07ae970b79"
+  },
+  "frontend/eslint.config.js": {
+    "mtime": 1785211876.1906834,
+    "ast_hash": "c15fd0f45c689a8b77c8ff6fe6fada9b",
+    "semantic_hash": "c15fd0f45c689a8b77c8ff6fe6fada9b"
+  },
+  "frontend/package.json": {
+    "mtime": 1785211876.1926937,
+    "ast_hash": "81f785c220d641458d62713682258170",
+    "semantic_hash": "81f785c220d641458d62713682258170"
+  },
+  "frontend/src/App.jsx": {
+    "mtime": 1785211876.1947043,
+    "ast_hash": "374581e6df6fbbcb0d780321dd719a65",
+    "semantic_hash": "374581e6df6fbbcb0d780321dd719a65"
+  },
+  "frontend/src/components/ProtectedRoute.jsx": {
+    "mtime": 1785211876.1947043,
+    "ast_hash": "ab83edd31ffe1bacd6547227b2206003",
+    "semantic_hash": "ab83edd31ffe1bacd6547227b2206003"
+  },
+  "frontend/src/context/AuthContext.jsx": {
+    "mtime": 1785211876.1947043,
+    "ast_hash": "66249c4abc270b8135e9bc381b8c8295",
+    "semantic_hash": "66249c4abc270b8135e9bc381b8c8295"
+  },
+  "frontend/src/context/SocketContext.jsx": {
+    "mtime": 1785211876.1967156,
+    "ast_hash": "d8250c8d1de7777b0dd495e38dfc30b9",
+    "semantic_hash": "d8250c8d1de7777b0dd495e38dfc30b9"
+  },
+  "frontend/src/main.jsx": {
+    "mtime": 1785211876.1967156,
+    "ast_hash": "51fd21c378330142b61bf8d1ef3795ef",
+    "semantic_hash": "51fd21c378330142b61bf8d1ef3795ef"
+  },
+  "frontend/src/pages/ActiveRidePage.jsx": {
+    "mtime": 1785211876.198725,
+    "ast_hash": "ebe01eeb31e015109b35491416f27df9",
+    "semantic_hash": "ebe01eeb31e015109b35491416f27df9"
+  },
+  "frontend/src/pages/AdminDashboard.jsx": {
+    "mtime": 1785211876.198725,
+    "ast_hash": "3c4d365d58d1f742abc8eeea70d28b22",
+    "semantic_hash": "3c4d365d58d1f742abc8eeea70d28b22"
+  },
+  "frontend/src/pages/AdminRidesPage.jsx": {
+    "mtime": 1785211876.198725,
+    "ast_hash": "9e3581fbf177dd0b7183917964aaab69",
+    "semantic_hash": "9e3581fbf177dd0b7183917964aaab69"
+  },
+  "frontend/src/pages/AdminUsersPage.jsx": {
+    "mtime": 1785211876.198725,
+    "ast_hash": "83a915fe94d4e678a02e9695e6b5c811",
+    "semantic_hash": "83a915fe94d4e678a02e9695e6b5c811"
+  },
+  "frontend/src/pages/AvailableRidesPage.jsx": {
+    "mtime": 1785211876.198725,
+    "ast_hash": "f8b067541459d11c32ff2eff58c6644f",
+    "semantic_hash": "f8b067541459d11c32ff2eff58c6644f"
+  },
+  "frontend/src/pages/DashboardPage.jsx": {
+    "mtime": 1785211876.2007318,
+    "ast_hash": "b158614f64db40fcd6fb718d1e3ef156",
+    "semantic_hash": "b158614f64db40fcd6fb718d1e3ef156"
+  },
+  "frontend/src/pages/DriverDashboard.jsx": {
+    "mtime": 1785211876.2007318,
+    "ast_hash": "583187a44324289dfc992b2db75ac3a6",
+    "semantic_hash": "583187a44324289dfc992b2db75ac3a6"
+  },
+  "frontend/src/pages/LoginPage.jsx": {
+    "mtime": 1785211876.2007318,
+    "ast_hash": "30ad2d37e9bfa162c63621c8e14903f6",
+    "semantic_hash": "30ad2d37e9bfa162c63621c8e14903f6"
+  },
+  "frontend/src/pages/PassengerDashboard.jsx": {
+    "mtime": 1785211876.2024815,
+    "ast_hash": "bf83b0485f7444347cd9abbdc37379e0",
+    "semantic_hash": "bf83b0485f7444347cd9abbdc37379e0"
+  },
+  "frontend/src/pages/PendingApprovalPage.jsx": {
+    "mtime": 1785211876.2024815,
+    "ast_hash": "3023cdebc45e0ba969fcc35826072bc3",
+    "semantic_hash": "3023cdebc45e0ba969fcc35826072bc3"
+  },
+  "frontend/src/pages/RegisterPage.jsx": {
+    "mtime": 1785211876.2024815,
+    "ast_hash": "325a491f6ce53defda577e257c94aacf",
+    "semantic_hash": "325a491f6ce53defda577e257c94aacf"
+  },
+  "frontend/src/pages/RideHistoryPage.jsx": {
+    "mtime": 1785211876.2024815,
+    "ast_hash": "77662da9756cf7c8cfeda244a312da4a",
+    "semantic_hash": "77662da9756cf7c8cfeda244a312da4a"
+  },
+  "frontend/src/pages/RideRequestPage.jsx": {
+    "mtime": 1785211876.2044904,
+    "ast_hash": "bb1ca34adebdd2973ff8a5fe210116e2",
+    "semantic_hash": "bb1ca34adebdd2973ff8a5fe210116e2"
+  },
+  "frontend/src/pages/RoleSelectionPage.jsx": {
+    "mtime": 1785211876.2044904,
+    "ast_hash": "d68965fb22034251144596ddf2f6fadb",
+    "semantic_hash": "d68965fb22034251144596ddf2f6fadb"
+  },
+  "frontend/src/services/api.js": {
+    "mtime": 1785211876.2044904,
+    "ast_hash": "bdb6ebc03402a843063ac675b4c3cd4f",
+    "semantic_hash": "bdb6ebc03402a843063ac675b4c3cd4f"
+  },
+  "frontend/vite.config.js": {
+    "mtime": 1785211876.2064981,
+    "ast_hash": "199e1221ae03d6974fdc8b5e23787b98",
+    "semantic_hash": "199e1221ae03d6974fdc8b5e23787b98"
+  },
+  "package.json": {
+    "mtime": 1785211876.2656243,
+    "ast_hash": "8dd304b280de0b4937c1329f9cbf29a0",
+    "semantic_hash": "8dd304b280de0b4937c1329f9cbf29a0"
+  },
+  "frontend/README.md": {
+    "mtime": 1785211876.1906834,
+    "ast_hash": "abfa161e3e5434e3e85394bf03d387a4",
+    "semantic_hash": "abfa161e3e5434e3e85394bf03d387a4"
+  },
+  "frontend/index.html": {
+    "mtime": 1785211876.1906834,
+    "ast_hash": "d9782e26304d9d929df83b9e549fcd4f",
+    "semantic_hash": "d9782e26304d9d929df83b9e549fcd4f"
+  },
+  "public/index.html": {
+    "mtime": 1785211876.2656243,
+    "ast_hash": "697d0295be0b73fa3d81322efe904a64",
+    "semantic_hash": "697d0295be0b73fa3d81322efe904a64"
+  },
+  "frontend/public/favicon.svg": {
+    "mtime": 1785211876.1926937,
+    "ast_hash": "7e840862161341271697daa99a40d76b",
+    "semantic_hash": "7e840862161341271697daa99a40d76b"
+  },
+  "frontend/public/icons.svg": {
+    "mtime": 1785211876.1947043,
+    "ast_hash": "21c7473c592c67dc87223d49892c8f0a",
+    "semantic_hash": "21c7473c592c67dc87223d49892c8f0a"
+  }
+}

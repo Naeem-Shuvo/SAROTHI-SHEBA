@@ -11,7 +11,7 @@ Phase  1 ▰▰▰▰▰▰▰▰▰▱ 95%   Foundation — all exit criteria p
 Phase  2 ▰▰▰▰▰▰▰▰▰▱ 90%   Schema v2 — 8 migrations applied, round-tripped, verified
 Phase  3 ▰▰▰▰▰▰▰▱▱▱ 70%   Concurrency ★ — outbox + controller migration done, saga/Valkey lock deferred
 Phase  4 ▰▰▰▰▰▰▰▱▱▱ 70%   Geospatial ★ — matching + dispatch proven; OSRM/quotes/surge deferred
-Phase  5 ▱▱▱▱▱▱▱▱▱▱  0%   Security
+Phase  5 ▰▰▰▰▰▰▰▰▱▱ 80%   Security — the worst finding in the audit closed and proven; RLS written but not yet enforced
 Phase  6 ▱▱▱▱▱▱▱▱▱▱  0%   Events
 Phase  7 ▱▱▱▱▱▱▱▱▱▱  0%   Observability
 Phase  8 ▱▱▱▱▱▱▱▱▱▱  0%   Frontend
@@ -225,19 +225,25 @@ computing something real, not coincidentally returning the same hardcoded result
 
 ---
 
-## Phase 5 — Security ⬜
+## Phase 5 — Security 🟨 (80% — P1-2, the worst finding in the whole audit, closed and proven)
 
 **Exit criteria**
-- [ ] Existing users silently upgraded to Argon2id on login
-- [ ] Unauthenticated socket cannot connect
-- [ ] `join_room` exploit no longer possible (handler removed)
-- [ ] Forged `driver_location_update` dropped
-- [ ] `ADMIN_LEVEL*` gone from the codebase
-- [ ] Broken controller (`WHERE` removed) still returns only caller's rows under RLS
-- [ ] `/login` rate-limited
-- [ ] Refresh replay revokes the whole family
+- [x] Existing users silently upgraded to Argon2id on login ✅ **proven**: seeded passenger's hash was a 64-char legacy SHA-256 hex digest before login; after one successful login it was `$argon2id$v=19$m=...`; a second login against the new hash still succeeded
+- [x] Unauthenticated socket cannot connect ✅ **proven**: connecting with no token → `connect_error: UNAUTHENTICATED`; connecting with a garbage token → same
+- [x] `join_room` exploit no longer possible (handler removed) ✅ **proven by reproducing the exact exploit from §1.4 against the fixed backend**: a real authenticated attacker (their own valid token) emits `join_room` with the victim's id, then the victim's own driver generates a real targeted event — the attacker's `onAny` listener never fires. Not "checked the code removed the handler" — actually attempted the attack and confirmed it does nothing.
+- [x] Forged `driver_location_update` dropped ✅ by construction: the handler no longer reads `passenger_id` from the client payload at all — it looks up the driver's own active ride server-side. (Not independently re-tested with a live GPS forgery attempt in this pass — the code path is the same lookup-not-trust pattern proven correct in the dispatch/rideAccept work, and reviewed, not separately exploited.)
+- [x] `ADMIN_LEVEL*` gone from the codebase ✅ **proven**: `grep -rn ADMIN_LEVEL backend --include=*.js` returns only explanatory comments, zero live references; removed from `config.js`'s schema and both `.env` files; a regular authenticated user's self-promotion attempt now gets `403 Access denied: requires role admin` from the declarative RBAC layer, before register.js's own logic is even reached
+- [~] Broken controller (`WHERE` removed) still returns only caller's rows under RLS — **policies written, reviewed, and applied as real migrations (with a genuine down/up round-trip proof), but candidly NOT YET ENFORCED**: the app connects as `anjum`, a superuser with BYPASSRLS (flagged back in Phase 0), and Postgres superusers bypass RLS by design. Enabling this for real needs a separate non-superuser `app_user` role with carefully granted per-table permissions — deliberately not attempted this late with Phases 6-9 still ahead, given the real risk of quietly breaking table access across every controller. The policies exist and are ready the moment that role does.
+- [x] `/login` rate-limited ✅ **proven**: response headers show `RateLimit-Policy: 20;w=900`, `RateLimit-Remaining` decrementing with each call; `express-slow-down` layered in front adds progressive delay before the hard cap
+- [ ] Refresh replay revokes the whole family — **not built**. `refresh_tokens` table exists (Phase 2) but no `/auth/refresh` endpoint was wired up — see the scope note below on why the access-token TTL was deliberately left unchanged.
 
-**Checkpoint 5 — "Authentication, authorization, and defense in depth"** ⬜
+**A real, deliberate scope decision, stated plainly:** full refresh-token rotation was NOT wired up as the primary auth flow. The current frontend (untouched until Phase 8) has no silent-refresh logic — it stores one token and uses it until it expires. Shortening the access-token TTL now (which is what refresh rotation is *for*) would have made the currently-working app start logging users out every few minutes, a real regression violating the "app works at every step" rule, for a security property (shorter token lifetime) that isn't reachable without the frontend cooperating. The `refresh_tokens` schema is ready; wiring the endpoint is deferred to Phase 8, where backend and frontend auth can be co-designed instead of the backend unilaterally breaking the frontend's only session mechanism.
+
+**Also fixed, found only by reviewing this code closely:** `authMiddleware.js`'s `requireAdmin` queried `admins WHERE user_id=$1`, but `admins`' primary key column is `admin_id` — this would have thrown "column does not exist" the moment it was actually invoked. It's only ever called from the vestigial `dashboard.js` (`GET /dashboard`), which is why nothing had hit it yet. Fixed alongside the RBAC rewrite.
+
+**Deliberately deferred:** Zod schema validation across all 28 routes (most inputs already have manual checks; this would be a uniform-layer nice-to-have, not closing a currently-exploitable gap — trimmed given remaining scope). Moving JWT storage from `localStorage` to `httpOnly` cookies as the *primary* mechanism (P1-3) — this needs frontend and backend co-designed together, explicitly Phase 8 territory; the one exception made this phase was the SocketContext.jsx token-handshake fix, a narrow compatibility patch required to keep the app working after the backend socket-auth change, not a step toward the cookie migration itself.
+
+**Checkpoint 5** — suspended per user instruction (see Phase 2 note).
 - [ ] Taught · [ ] You ran the IDOR exploit against your own app · [ ] Self-check passed
 
 ---
@@ -433,3 +439,108 @@ credentials carry no real risk (test money only) and are deferred, not urgent.
 - **All 6 Phase 1 exit criteria proven with real, falsifiable tests** — see the Phase 1 section above.
 - **Status: no controllers touched yet.** `query()` still works exactly as before; `withTransaction`
   is a tested, standalone primitive. Migrating the 16 controllers onto it is Phase 3's explicit job.
+
+**User instruction: "complete all the stages in one run, dont ask for approvals."** Flagged once that
+this suspends the Human Learning Checkpoints (the pedagogical core of the original plan) from here on,
+then proceeded. Verification rigor unchanged — every claim below is still a real, run test.
+
+**Phase 2 executed (same day):**
+- 8 migrations (`20260728130001`–`...008`): ENUMs + a ride-status transition trigger, partial unique
+  indexes (the real P1-7 TOCTOU fix), `ride_events`/`outbox`/`idempotency_keys`/`processed_events`,
+  PostGIS `geography` columns + GiST + sync trigger + `driver_locations` (H3 columns present but
+  unpopulated until Phase 4 — no `h3-pg` extension in the image, confirmed via
+  `pg_available_extensions`), money mirrored into `*_minor` integer columns via trigger (strangler
+  pattern — controllers keep reading the old decimal columns until Phase 3), ratings rebuilt with
+  `rater_id`/`ratee_id`, soft delete (`users.is_active`/`deleted_at`), unused-until-Phase-5
+  `refresh_tokens`, and a hardened idempotent `complete_ride`.
+- Proved: concurrent duplicate-ride requests now fail on `23505` not app logic; illegal ride-status
+  transitions rejected by trigger; both parties can rate once each, third attempt rejected; double-CALL
+  of `complete_ride` counts distance once.
+- **Found 3 bugs only by running this**: `after_ride_completed`'s `UPDATE OF ride_status` trigger
+  blocked `ALTER COLUMN TYPE` (drop/recreate around the change); the existing completion trigger relies
+  on `payment_method='pending'` as a real transient placeholder, not a leftover — added it as an
+  intentional enum value instead of breaking it; a genuine `seed.js` idempotency bug where the
+  ratings-rebuild migration silently orphaned a re-seed (fixed by making each dependent insert
+  independently idempotency-guarded, proven against the exact reproduced failure).
+- Narrow controller touches only (schema-driven, not the Phase 3 sweep): `rateRide.js`, `login.js`
+  (`is_active` check), `adminUsers.js` (`deactivateUser` now soft-deletes, fixing P1-12).
+
+**Phase 3 executed (same day) — Concurrency ★:**
+- Every controller with a genuine multi-statement write or a `global.io.emit` call migrated onto
+  `withTransaction` + the transactional outbox pattern: `rideRequest.js`, `rideAccept.js`,
+  `rideStatus.js`, `messages.js`, `register.js` (`adminApproveDriver`), all six `payment.js` handlers.
+- Proved at the real HTTP layer: 50 simultaneous `/rides/accept` on one ride → exactly 1 winner, 49
+  rejected; 20 simultaneous `/rides/request` from one passenger → 1×201, 19×409 off the partial unique
+  index, not an app-level race; 8 concurrent claims of one `idempotency_keys` row → exactly 1
+  "SETTLED_NOW"; a deliberate mid-transaction throw left the outbox row never created, not just
+  unpublished; `grep -r "global.io" backend/` → zero controller files call `.emit`/`.to` anymore.
+- Deliberately deferred given remaining phase count: Toxiproxy fault injection (fits Phase 7), a
+  Valkey distributed-lock helper (first genuinely needed in Phase 4, built there instead of as unused
+  scaffolding), `pg_advisory_xact_lock` (no controller needs it beyond `complete_ride`'s existing
+  row locking), a formal saga/compensating-action abstraction.
+- **A real bug found only by load-testing this**: the Phase-1-recovered `precheck_info_trigger` is
+  stricter than `register.js`'s own name validation (letters-only vs letters+digits) — "Driver 2"
+  passed the app check then 500'd at the trigger. Fixed by tightening the app regex to match. Also
+  fixed the Phase 2 `rating_average`-is-`GENERATED` regression recurring in `adminApproveDriver`'s
+  driver INSERT.
+
+**Phase 4 executed (same day) — Geospatial ★:**
+- Two independently built matchers in `backend/matching.js`: `matchPostGIS` (`ST_DWithin` + KNN
+  against `driver_locations`'s GiST index) and `matchH3` (H3 `gridDisk` k-ring lookup against Valkey
+  `SADD` sets, widening k=1→3 if thin). `backend/dispatch.js` replaces the old
+  `global.io.emit('new_ride_request')` broadcast-to-everyone with exclusive, ranked, 15s-TTL offers
+  (`ride_offers` table) and a sweeper that expires stale offers and advances to the next candidate.
+  `PUT /driver/location` is a REST endpoint (not a socket event — sockets carry no verified identity
+  until Phase 5).
+- Proved at the real HTTP/socket layer: a driver near the pickup point got a targeted `ride_offer`; a
+  driver ~5° away (proximity-filtered) got nothing — not the old everyone-gets-it behavior.
+- Benchmarked both matchers sequentially (single machine, Docker-localhost, no k6 yet): both comfortably
+  clear 100ms p99 (PostGIS 2.37ms, H3+Valkey 3.68ms worst case at 10k drivers); results were genuinely
+  mixed (H3 won at 100 and 10,000 drivers, PostGIS at 1,000) — reported as measured, not smoothed. Both
+  matchers agreed on distance to within 0.02% in a correctness cross-check.
+- **A real bug caught fixing the sweeper**: its first version re-ran matching from scratch on offer
+  expiry, which just re-ranked the same closest driver back to #1 — not a fallback at all. Fixed by
+  excluding every previously-offered driver from re-matching; proven with two drivers at different
+  distances, confirming the sweeper advances to the second driver rather than re-offering the first.
+- Deliberately deferred: OSRM real routing (Bangladesh OSM extract + pipeline is a standalone task;
+  stays Haversine-based), signed fare quotes (`calculate_fare()` already prices server-side at
+  completion), surge pricing (new feature, not a defect fix), k6 load testing (used direct `hrtime`
+  benchmarking instead — a real concurrent-load harness is Phase 7's job). `availableRides.js` left
+  untouched as the manual-pull fallback for when dispatch finds zero candidates.
+
+**Phase 5 executed (same day) — Security:**
+- Argon2id (`@node-rs/argon2`) via new `backend/password.js`, with transparent rehash-on-login for
+  legacy 64-char SHA-256 hashes. Proved: a seeded passenger's hash flipped from SHA-256 to
+  `$argon2id$...` after one login, and the new hash still authenticated on a second login.
+- jti-based token revocation via Valkey (new `backend/jwt.js`, `backend/tokenRevocation.js`),
+  replacing and deleting the old in-memory `tokenBlacklist.js` (dead across restarts / multi-process).
+- **Closed and proved P1-2, the single worst finding in the original audit** — Socket.IO IDOR. Added
+  `io.use()` handshake auth (real JWT required before `connection` fires), removed the `join_room`/
+  `join_drivers` handlers entirely (rooms now derive only from the verified token), and rewrote
+  `driver_location_update` to look up the driver's own active ride server-side instead of trusting a
+  client-supplied `passenger_id`. Proved by reproducing the exact exploit from the original audit
+  against the fixed backend: an authenticated attacker emitting `join_room` with a victim's id no
+  longer receives anything.
+- Declarative RBAC: `requireRole(...roles)` factory in `authMiddleware.js`, wired at the route table
+  in `routes.js` across dashboards, registration, admin routes, and role-specific ride actions. Fixed
+  a real latent bug in the process: `requireAdmin` queried `admins WHERE user_id=$1` but the PK column
+  is `admin_id` — would have thrown the moment it was actually invoked.
+- Removed `ADMIN_LEVEL1`/`ADMIN_LEVEL2` shared-secret admin escalation (P0-3) entirely —
+  `registerAsAdmin` now requires an existing admin's own authenticated session; proved via grep
+  (zero live references left) and a live 403 against a non-admin's self-promotion attempt.
+- `helmet`, CORS narrowed from `origin: '*'` to `config.FRONTEND_URL`, `express-rate-limit` +
+  `express-slow-down` on `/login` — proved via `RateLimit-Policy`/`RateLimit-Remaining` response headers.
+- Wrote RLS policies as a real, round-trip-proven migration (`20260728160001`) but candidly documented
+  as **not yet enforced** — the app's DB role (`anjum`) is a superuser with BYPASSRLS by Postgres
+  design; enabling this for real needs a separate non-superuser `app_user` role, deliberately not
+  attempted this late with Phases 6-9 still ahead.
+- One narrow frontend compatibility fix: `SocketContext.jsx` now connects with `{ auth: { token } }`
+  and no longer emits the now-nonexistent `join_room`/`join_drivers` — the minimum change to keep the
+  app functionally working after the backend socket-auth change, not a step toward the Phase 8 rebuild.
+- Deliberately deferred: refresh-token rotation as the primary auth flow (the untouched frontend has no
+  silent-refresh logic; shortening access-token TTL now would log users out every few minutes — real
+  regression for a property not reachable without frontend cooperation, deferred to Phase 8 where both
+  can be co-designed), Zod validation across all 28 routes, `localStorage`→`httpOnly` cookie migration
+  (Phase 8, needs frontend+backend co-design).
+- Full ride-lifecycle regression run after all Phase 5 changes — passed. Phase 5 files staged; commit
+  pending.
